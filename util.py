@@ -3,6 +3,7 @@ from typing import NamedTuple, TYPE_CHECKING
 
 import networkx as nx
 from qiskit.quantum_info import SparsePauliOp
+from scipy.special import comb
 
 import numpy as np
 from numpy.typing import NDArray
@@ -114,9 +115,11 @@ def obtain_random_pauli_strings(
     strings_length: int, # n
     num_strings: int = 1, # d
     basis_paulis: set[str] = {"I", "X"},
+    locality: int | None = None
 ) -> list[str]:
     """Return a random list of `num_strings` unique Pauli strings of length `strings_length"
-    constructed from the `basis_paulis` elements, excluding the identity operator."""
+    constructed from the `basis_paulis` elements, excluding the identity operator.
+    If locality is specified, each string will have at most `locality` non-identity terms."""
     
     num_pauli_types = len(basis_paulis)
     allowed_paulis = {"I", "X", "Y", "Z"}
@@ -135,8 +138,23 @@ def obtain_random_pauli_strings(
     pauli_strings = set()
     
     while len(pauli_strings) < num_strings:
-        candidate = "".join(np.random.choice(tuple(basis_paulis), size=strings_length))
-        
+        if locality is None:
+            candidate = "".join(np.random.choice(tuple(basis_paulis), size=strings_length))
+        else:
+
+            if len(pauli_strings) >= comb(strings_length, locality):
+                break
+
+            # Generate string with all identities
+            candidate_list = ["I"] * strings_length
+            # Choose random positions for non-identity terms
+            non_i_positions = np.random.choice(strings_length, size=min(locality, strings_length), replace=False)
+            # Fill chosen positions with random non-identity Paulis
+            non_i_paulis = basis_paulis - {"I"}
+            for pos in non_i_positions:
+                candidate_list[pos] = np.random.choice(tuple(non_i_paulis))
+            candidate = "".join(candidate_list)
+
         # Excluding the identity operator
         if candidate != "I" * strings_length:
             pauli_strings.add(candidate)
@@ -157,6 +175,61 @@ def obtain_ix_n_hamiltonian(n: int, d: int) -> SparsePauliOp:
     coeffs += [-1 for _ in range(d)]
 
     return SparsePauliOp(data=ops, coeffs=coeffs)
+
+
+def compute_eigenspectrum_ixn_laplacian(laplacian_hamiltonian: SparsePauliOp) -> None: # TODO
+    """TODO COMPLTEE."""
+
+    degree = np.real(laplacian_hamiltonian.coeffs[0])
+
+    num_nodes = laplacian_hamiltonian.dim[0]
+    num_qubits = len(laplacian_hamiltonian.paulis[0].to_label())
+    
+    eigenvalues = []
+    for eigenvalue_index in range(num_nodes):
+
+        eigenvalue = degree
+        eigenvalue_index_binary = np.array(list(bin(eigenvalue_index)[2:].zfill(num_qubits)), dtype=int)
+
+        for pauli in laplacian_hamiltonian.paulis[1:]:
+            pauli_binary_mask = np.array(list(pauli.to_label().replace("I", "0").replace("X", "1")), dtype=int)
+
+            exponent = np.dot(pauli_binary_mask, eigenvalue_index_binary)
+            eigenvalue -= (-1) ** (exponent)
+
+        eigenvalues.append(eigenvalue)
+    
+    return sorted(eigenvalues)
+
+
+def obtain_random_nontrivial_laplacian(n: int) -> SparsePauliOp:
+    """TODO COMPLETE."""
+    
+    num_nodes = 2 ** n
+    d = np.random.randint(1, num_nodes)
+
+    hamiltonian = obtain_ix_n_hamiltonian(n, d)
+
+    op_00 = SparsePauliOp(data=["II", "IZ", "ZI", "ZZ"], coeffs=[0.25 for _ in range(4)])
+    op_01 = SparsePauliOp(data=["XX", "XY", "YX", "YY"], coeffs=[0.25, 0.25j, 0.25j, -0.25])
+    op_10 = SparsePauliOp(data=["XX", "XY", "YX", "YY"], coeffs=[0.25, -0.25j, -0.25j, -0.25])
+    op_11 = SparsePauliOp(data=["II", "IZ", "ZI", "ZZ"], coeffs=[0.25, -0.25, -0.25, 0.25])
+
+    addition_size = min(int(d / 4), 10)
+    scaling_paulis = obtain_random_pauli_strings(
+        strings_length=n - 2,
+        num_strings=addition_size,
+        basis_paulis={"I", "X"},
+        locality=1
+    )
+
+    for pauli_string in scaling_paulis:
+        hamiltonian += SparsePauliOp("I" * (n - 2)).tensor(op_00)
+        hamiltonian -= SparsePauliOp(pauli_string).tensor(op_01)
+        hamiltonian -= SparsePauliOp(pauli_string).tensor(op_10)
+        hamiltonian += SparsePauliOp(pauli_string).tensor(op_11)
+
+    return hamiltonian
 
 
 def sparse_pauli_op_to_latex(sparse_pauli_op: SparsePauliOp) -> str:
