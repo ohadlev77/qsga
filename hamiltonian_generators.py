@@ -1,10 +1,15 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from copy import deepcopy
 
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
+if TYPE_CHECKING:
+    from numpy.random import Generator
 
-# Basis elements for all 2X2 matrices, building blocks for bases for all 2^nX2^n matrices
+
+# Basis elements for all 2X2 matrices, building blocks for bases of all 2^nX2^n matrices
 OP00 = SparsePauliOp(data=["I", "Z"], coeffs=[0.5, 0.5])
 OP01 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, 0.5j])
 OP10 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, -0.5j])
@@ -16,7 +21,8 @@ def obtain_random_pauli_strings(
     strings_length: int, # n_num_qubits
     num_strings: int = 1, # d_regularity
     basis_paulis: set[str] = {"I", "X"},
-    locality: int | None = None
+    locality: int | None = None,
+    pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> list[str]:
     """Return a random list of `num_strings` unique Pauli strings of length `strings_length"
     constructed from the `basis_paulis` elements, excluding the identity operator.
@@ -50,21 +56,21 @@ def obtain_random_pauli_strings(
     
     while len(pauli_strings) < num_strings:
         if locality is None:
-            candidate = "".join(np.random.choice(tuple(basis_paulis), size=strings_length))
+            candidate = "".join(pseudo_rng.choice(tuple(basis_paulis), size=strings_length))
         else:
             candidate_list = ["I"] * strings_length
 
             # Choose random positions for non-identity terms
-            non_i_positions = np.random.choice(
+            non_i_positions = pseudo_rng.choice(
                 strings_length,
-                size=min(np.random.randint(1,locality) + 1, strings_length),
+                size=min(pseudo_rng.integers(1, locality) + 1, strings_length),
                 replace=False
             )
 
             # Fill chosen positions with random non-identity Paulis
             non_i_paulis = basis_paulis - {"I"}
             for pos in non_i_positions:
-                candidate_list[pos] = np.random.choice(tuple(non_i_paulis))
+                candidate_list[pos] = pseudo_rng.choice(tuple(non_i_paulis))
             candidate = "".join(candidate_list)
 
         # Excluding the identity operator
@@ -77,7 +83,8 @@ def obtain_random_pauli_strings(
 def obtain_ix_n_hamiltonian(
     n: int,
     d: int,
-    max_locality: int | None = None
+    max_locality: int | None = None,
+    pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
     """Generate an IX_n Laplacian Hamiltonian over `n` qubits (2^n nodes) and `d`-regularity.
 
@@ -94,7 +101,8 @@ def obtain_ix_n_hamiltonian(
     ops += obtain_random_pauli_strings(
         strings_length=n,
         num_strings=d,
-        locality=max_locality
+        locality=max_locality,
+        pseudo_rng=pseudo_rng
     )
 
     coeffs = [d]
@@ -108,18 +116,19 @@ def obtain_random_m_local_perturbation(
     randomly_weighted: bool = False,
     weights_range: tuple[float, float] = (0.5, 5.0),
     simplify: bool = True,
+    pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
     """TODO COMPLETE."""
 
     local_hilbert_dim = 2 ** m
 
-    # Pick entris at random
-    i1, i2 = np.random.choice(local_hilbert_dim, size=2, replace=False)
+    # Pick entries at random
+    i1, i2 = pseudo_rng.choice(local_hilbert_dim, size=2, replace=False)
     entries = [(i1, i1), (i1, i2), (i2, i1), (i2, i2)]
 
     weights = np.array([1, -1, -1, 1])
     if randomly_weighted:
-        weights = np.random.uniform(*weights_range) * weights
+        weights = pseudo_rng.uniform(*weights_range) * weights
 
     perturbation_hamiltonian = SparsePauliOp(["I" * m], [0])
     for entry_index, entry in enumerate(entries):
@@ -148,6 +157,7 @@ def obtain_random_perturbated_laplacian(
     random_perturbation_weights: bool = False,
     random_perturbations_scaling: bool = False,
     simplify: bool = True,
+    pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
     """TODO COMPLETE."""
 
@@ -157,16 +167,17 @@ def obtain_random_perturbated_laplacian(
 
     # Adding perturbations
     for _ in range(num_perturbations):
-        perturbation_locality = np.random.randint(max_perturbation_locality) + 1
+        perturbation_locality = pseudo_rng.integers(max_perturbation_locality) + 1
 
         unscaled_perturbation = obtain_random_m_local_perturbation(
             m=perturbation_locality,
-            randomly_weighted=random_perturbation_weights
+            randomly_weighted=random_perturbation_weights,
+            pseudo_rng=pseudo_rng
         )
         scaling_dim = num_qubits - perturbation_locality
 
         if random_perturbations_scaling:
-            threshold = np.random.randint(scaling_dim) + 1
+            threshold = pseudo_rng.integers(scaling_dim) + 1
             scaled_perturbation = SparsePauliOp("I" * threshold).tensor(unscaled_perturbation).tensor(
                 SparsePauliOp("I" * (scaling_dim - threshold))
             )
