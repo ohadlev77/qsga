@@ -192,40 +192,6 @@ def obtain_random_perturbated_laplacian(
     return perturbated_hamiltonian
 
 
-### OBSOLETE FUNCTION BELOW ###
-def obtain_random_nontrivial_laplacian(
-    n_num_qubits: int,
-    d_skeleton_regularity: int = 3,
-) -> tuple[SparsePauliOp, SparsePauliOp]:
-    """TODO THIS FUNCTION IS OBSOLETE AND SEEMS TO PROVIDE UNVALID LAPLACIANS."""
-    
-    num_nodes = 2 ** n_num_qubits
-
-    skeleton_hamiltonian = obtain_ix_n_hamiltonian(n_num_qubits, d_skeleton_regularity)
-    perterbuted_hamiltonian = deepcopy(skeleton_hamiltonian)
-
-    op_00 = SparsePauliOp(data=["II", "IZ", "ZI", "ZZ"], coeffs=[0.25 for _ in range(4)])
-    op_01 = SparsePauliOp(data=["XX", "XY", "YX", "YY"], coeffs=[0.25, 0.25j, 0.25j, -0.25])
-    op_10 = SparsePauliOp(data=["XX", "XY", "YX", "YY"], coeffs=[0.25, -0.25j, -0.25j, -0.25])
-    op_11 = SparsePauliOp(data=["II", "IZ", "ZI", "ZZ"], coeffs=[0.25, -0.25, -0.25, 0.25])
-
-    addition_size = 4
-    scaling_paulis = obtain_random_pauli_strings(
-        strings_length=n_num_qubits - 2,
-        num_strings=addition_size,
-        basis_paulis={"I", "X"},
-        locality=2
-    )
-
-    for pauli_string in scaling_paulis:
-        perterbuted_hamiltonian += SparsePauliOp("I" * (n_num_qubits - 2)).tensor(op_00)
-        perterbuted_hamiltonian -= SparsePauliOp(pauli_string).tensor(op_01)
-        perterbuted_hamiltonian -= SparsePauliOp(pauli_string).tensor(op_10)
-        perterbuted_hamiltonian += SparsePauliOp(pauli_string).tensor(op_11)
-
-    return skeleton_hamiltonian, perterbuted_hamiltonian
-
-
 if __name__ == "__main__":
     H = obtain_ix_n_hamiltonian(n=4, d=3, max_locality=2)
 
