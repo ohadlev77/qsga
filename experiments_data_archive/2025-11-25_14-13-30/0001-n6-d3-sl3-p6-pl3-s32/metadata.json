@@ -1,0 +1,18 @@
+{
+    "item_idx": 1,
+    "item_id": "0001-n6-d3-sl3-p6-pl3-s32",
+    "created_at": "2025-11-25T14:13:30+02:00",
+    "config_index": 1,
+    "configuration": {
+        "n_num_qubits": 6,
+        "d_skeleton_regularity": 3,
+        "max_skeleton_locality": 3,
+        "num_perturbations": 6,
+        "max_perturbation_locality": 3,
+        "perturbation_weights_bounds": [
+            2,
+            80
+        ],
+        "seed": 32
+    }
+}

@@ -1,0 +1,595 @@
+{
+    "directed": false,
+    "multigraph": false,
+    "graph": {},
+    "nodes": [
+        {
+            "id": 0
+        },
+        {
+            "id": 1
+        },
+        {
+            "id": 2
+        },
+        {
+            "id": 3
+        },
+        {
+            "id": 4
+        },
+        {
+            "id": 5
+        },
+        {
+            "id": 6
+        },
+        {
+            "id": 7
+        },
+        {
+            "id": 8
+        },
+        {
+            "id": 9
+        },
+        {
+            "id": 10
+        },
+        {
+            "id": 11
+        },
+        {
+            "id": 12
+        },
+        {
+            "id": 13
+        },
+        {
+            "id": 14
+        },
+        {
+            "id": 15
+        },
+        {
+            "id": 16
+        },
+        {
+            "id": 17
+        },
+        {
+            "id": 18
+        },
+        {
+            "id": 19
+        },
+        {
+            "id": 20
+        },
+        {
+            "id": 21
+        },
+        {
+            "id": 22
+        },
+        {
+            "id": 23
+        },
+        {
+            "id": 24
+        },
+        {
+            "id": 25
+        },
+        {
+            "id": 26
+        },
+        {
+            "id": 27
+        },
+        {
+            "id": 28
+        },
+        {
+            "id": 29
+        },
+        {
+            "id": 30
+        },
+        {
+            "id": 31
+        }
+    ],
+    "links": [
+        {
+            "weight": 15.220502688514044,
+            "source": 0,
+            "target": 1
+        },
+        {
+            "weight": 24.717984304764656,
+            "source": 0,
+            "target": 7
+        },
+        {
+            "weight": 20.22050591550356,
+            "source": 0,
+            "target": 14
+        },
+        {
+            "weight": 18.971030871508617,
+            "source": 0,
+            "target": 16
+        },
+        {
+            "weight": 27.35487466757025,
+            "source": 0,
+            "target": 17
+        },
+        {
+            "weight": 33.93919720260896,
+            "source": 0,
+            "target": 23
+        },
+        {
+            "weight": 33.81467041711506,
+            "source": 0,
+            "target": 24
+        },
+        {
+            "weight": 27.00180897957549,
+            "source": 0,
+            "target": 26
+        },
+        {
+            "weight": 30.662679740245423,
+            "source": 0,
+            "target": 27
+        },
+        {
+            "weight": 22.124127614478745,
+            "source": 0,
+            "target": 28
+        },
+        {
+            "weight": 18.835995834401235,
+            "source": 0,
+            "target": 29
+        },
+        {
+            "weight": 24.03392986035478,
+            "source": 0,
+            "target": 30
+        },
+        {
+            "weight": 25.386376926878427,
+            "source": 1,
+            "target": 2
+        },
+        {
+            "weight": 32.57435469872518,
+            "source": 1,
+            "target": 5
+        },
+        {
+            "weight": 20.942563973140018,
+            "source": 1,
+            "target": 18
+        },
+        {
+            "weight": 24.226645914554986,
+            "source": 1,
+            "target": 23
+        },
+        {
+            "weight": 20.989313817113782,
+            "source": 1,
+            "target": 24
+        },
+        {
+            "weight": 15.03946954461119,
+            "source": 1,
+            "target": 26
+        },
+        {
+            "weight": 12.461054235155911,
+            "source": 1,
+            "target": 30
+        },
+        {
+            "weight": 16.901979276735787,
+            "source": 1,
+            "target": 31
+        },
+        {
+            "weight": 25.53762315066794,
+            "source": 2,
+            "target": 21
+        },
+        {
+            "weight": 32.38533401661377,
+            "source": 2,
+            "target": 23
+        },
+        {
+            "weight": 11.726640133715051,
+            "source": 2,
+            "target": 24
+        },
+        {
+            "weight": 22.112490419742333,
+            "source": 3,
+            "target": 5
+        },
+        {
+            "weight": 30.258384980860072,
+            "source": 3,
+            "target": 7
+        },
+        {
+            "weight": 33.6984657404782,
+            "source": 3,
+            "target": 9
+        },
+        {
+            "weight": 15.242520388360663,
+            "source": 3,
+            "target": 19
+        },
+        {
+            "weight": 13.063279251739932,
+            "source": 3,
+            "target": 22
+        },
+        {
+            "weight": 14.968368323308622,
+            "source": 3,
+            "target": 28
+        },
+        {
+            "weight": 19.061168689929517,
+            "source": 4,
+            "target": 9
+        },
+        {
+            "weight": 19.950912717445917,
+            "source": 4,
+            "target": 13
+        },
+        {
+            "weight": 25.1608584584306,
+            "source": 4,
+            "target": 14
+        },
+        {
+            "weight": 12.600807542890466,
+            "source": 4,
+            "target": 20
+        },
+        {
+            "weight": 32.839531637043855,
+            "source": 4,
+            "target": 24
+        },
+        {
+            "weight": 26.830421191792695,
+            "source": 5,
+            "target": 10
+        },
+        {
+            "weight": 23.87517585445922,
+            "source": 5,
+            "target": 14
+        },
+        {
+            "weight": 34.28598318367668,
+            "source": 5,
+            "target": 21
+        },
+        {
+            "weight": 21.4602355758538,
+            "source": 5,
+            "target": 25
+        },
+        {
+            "weight": 18.41044729895322,
+            "source": 6,
+            "target": 8
+        },
+        {
+            "weight": 28.79113275999041,
+            "source": 6,
+            "target": 12
+        },
+        {
+            "weight": 30.17169341408831,
+            "source": 6,
+            "target": 21
+        },
+        {
+            "weight": 28.05710691895427,
+            "source": 6,
+            "target": 23
+        },
+        {
+            "weight": 31.47285702800147,
+            "source": 6,
+            "target": 26
+        },
+        {
+            "weight": 14.27355125502674,
+            "source": 6,
+            "target": 31
+        },
+        {
+            "weight": 32.98637209526381,
+            "source": 7,
+            "target": 13
+        },
+        {
+            "weight": 17.80010516783152,
+            "source": 7,
+            "target": 22
+        },
+        {
+            "weight": 25.85919252783475,
+            "source": 7,
+            "target": 31
+        },
+        {
+            "weight": 17.426666335228667,
+            "source": 8,
+            "target": 11
+        },
+        {
+            "weight": 23.489785496230226,
+            "source": 8,
+            "target": 20
+        },
+        {
+            "weight": 33.21348248296675,
+            "source": 8,
+            "target": 28
+        },
+        {
+            "weight": 19.3460189930847,
+            "source": 9,
+            "target": 11
+        },
+        {
+            "weight": 34.37130213146864,
+            "source": 9,
+            "target": 12
+        },
+        {
+            "weight": 22.999030193850768,
+            "source": 9,
+            "target": 15
+        },
+        {
+            "weight": 32.97367071174909,
+            "source": 9,
+            "target": 16
+        },
+        {
+            "weight": 22.924483221940534,
+            "source": 9,
+            "target": 25
+        },
+        {
+            "weight": 20.380590470824373,
+            "source": 9,
+            "target": 29
+        },
+        {
+            "weight": 30.32224775975635,
+            "source": 10,
+            "target": 12
+        },
+        {
+            "weight": 18.11281337459376,
+            "source": 10,
+            "target": 17
+        },
+        {
+            "weight": 30.199221259125927,
+            "source": 10,
+            "target": 18
+        },
+        {
+            "weight": 18.056091966213717,
+            "source": 10,
+            "target": 21
+        },
+        {
+            "weight": 20.119125540667255,
+            "source": 10,
+            "target": 29
+        },
+        {
+            "weight": 28.938198821442263,
+            "source": 11,
+            "target": 14
+        },
+        {
+            "weight": 20.322814871355266,
+            "source": 11,
+            "target": 17
+        },
+        {
+            "weight": 28.82417766378127,
+            "source": 11,
+            "target": 20
+        },
+        {
+            "weight": 15.415635011745342,
+            "source": 12,
+            "target": 14
+        },
+        {
+            "weight": 15.855719041703045,
+            "source": 12,
+            "target": 19
+        },
+        {
+            "weight": 14.130247266530704,
+            "source": 12,
+            "target": 20
+        },
+        {
+            "weight": 31.19839290209353,
+            "source": 12,
+            "target": 23
+        },
+        {
+            "weight": 30.32446310774585,
+            "source": 12,
+            "target": 24
+        },
+        {
+            "weight": 29.905425357551003,
+            "source": 12,
+            "target": 28
+        },
+        {
+            "weight": 32.49216752298091,
+            "source": 12,
+            "target": 29
+        },
+        {
+            "weight": 11.586370146208154,
+            "source": 12,
+            "target": 31
+        },
+        {
+            "weight": 29.831266788918384,
+            "source": 13,
+            "target": 15
+        },
+        {
+            "weight": 12.09793577298036,
+            "source": 13,
+            "target": 17
+        },
+        {
+            "weight": 15.358019424717678,
+            "source": 13,
+            "target": 19
+        },
+        {
+            "weight": 12.451160853811672,
+            "source": 13,
+            "target": 20
+        },
+        {
+            "weight": 14.642607066329806,
+            "source": 13,
+            "target": 26
+        },
+        {
+            "weight": 12.079231200388657,
+            "source": 14,
+            "target": 25
+        },
+        {
+            "weight": 31.987543443297938,
+            "source": 14,
+            "target": 26
+        },
+        {
+            "weight": 16.939673653823085,
+            "source": 15,
+            "target": 16
+        },
+        {
+            "weight": 23.988798445347115,
+            "source": 15,
+            "target": 18
+        },
+        {
+            "weight": 26.3732039622697,
+            "source": 15,
+            "target": 20
+        },
+        {
+            "weight": 19.586788729334426,
+            "source": 15,
+            "target": 23
+        },
+        {
+            "weight": 23.048826057682298,
+            "source": 15,
+            "target": 24
+        },
+        {
+            "weight": 26.51334816144344,
+            "source": 15,
+            "target": 27
+        },
+        {
+            "weight": 32.85346697765059,
+            "source": 16,
+            "target": 17
+        },
+        {
+            "weight": 22.426387900474435,
+            "source": 16,
+            "target": 28
+        },
+        {
+            "weight": 18.66936159519157,
+            "source": 17,
+            "target": 22
+        },
+        {
+            "weight": 31.520400213962752,
+            "source": 17,
+            "target": 27
+        },
+        {
+            "weight": 24.51622464272902,
+            "source": 19,
+            "target": 26
+        },
+        {
+            "weight": 24.52205497995372,
+            "source": 20,
+            "target": 24
+        },
+        {
+            "weight": 31.387917206522403,
+            "source": 21,
+            "target": 28
+        },
+        {
+            "weight": 31.662402834186835,
+            "source": 22,
+            "target": 27
+        },
+        {
+            "weight": 24.66800129698534,
+            "source": 22,
+            "target": 29
+        },
+        {
+            "weight": 24.028221005328387,
+            "source": 24,
+            "target": 27
+        },
+        {
+            "weight": 33.38806462689029,
+            "source": 25,
+            "target": 30
+        },
+        {
+            "weight": 30.77797964996715,
+            "source": 26,
+            "target": 31
+        },
+        {
+            "weight": 15.375707009478166,
+            "source": 29,
+            "target": 30
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "item_idx": 0,
+    "item_id": "0000-n12-d20-sl12-p20-pl3-s32",
+    "created_at": "2025-11-05T14:49:35+02:00",
+    "config_index": 0,
+    "num_nodes": 4096,
+    "configuration": {
+        "n_num_qubits": 12,
+        "d_skeleton_regularity": 20,
+        "max_skeleton_locality": 12,
+        "num_perturbations": 20,
+        "max_perturbation_locality": 3,
+        "perturbation_weights_bounds": [
+            2,
+            6
+        ],
+        "seed": 32
+    }
+}

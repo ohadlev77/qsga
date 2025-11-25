@@ -1,0 +1,48 @@
+{
+    "configurations": {
+        "n_num_qubits": [
+            12
+        ],
+        "d_skeleton_regularity": [
+            20
+        ],
+        "max_skeleton_locality": [
+            12
+        ],
+        "num_perturbations": [
+            20
+        ],
+        "max_perturbation_locality": [
+            3
+        ],
+        "perturbation_weights_bounds": [
+            [
+                2,
+                6
+            ]
+        ],
+        "seed": [
+            32
+        ]
+    },
+    "total_configurations": 1,
+    "graph_types": [
+        "skeleton_graph",
+        "definite_order_perturbated_graph",
+        "random_order_perturbated_graph",
+        "dop_like_random_graph",
+        "rop_like_random_graph"
+    ],
+    "run_metadata": {
+        "created_at": "2025-11-05T18:03:16+02:00",
+        "python": "3.12.3",
+        "platform": "Linux-6.14.0-33-generic-x86_64-with-glibc2.39",
+        "libraries": {
+            "numpy": "1.26.4",
+            "networkx": "3.5"
+        },
+        "run_name": null,
+        "run_notes": null,
+        "run_dir": "experiments_data_archive/2025-11-05_18-03-16"
+    }
+}

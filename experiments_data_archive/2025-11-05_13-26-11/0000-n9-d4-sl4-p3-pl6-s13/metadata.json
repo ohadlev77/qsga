@@ -1,0 +1,19 @@
+{
+    "item_idx": 0,
+    "item_id": "0000-n9-d4-sl4-p3-pl6-s13",
+    "created_at": "2025-11-05T13:26:11+02:00",
+    "config_index": 0,
+    "num_nodes": 512,
+    "configuration": {
+        "n_num_qubits": 9,
+        "d_skeleton_regularity": 4,
+        "max_skeleton_locality": 4,
+        "num_perturbations": 3,
+        "max_perturbation_locality": 6,
+        "perturbation_weights_bounds": [
+            2,
+            6
+        ],
+        "seed": 13
+    }
+}

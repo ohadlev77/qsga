@@ -1,0 +1,244 @@
+{
+    "items": [
+        {
+            "item_idx": 0,
+            "item_id": "0000-n9-d4-sl4-p12-pl6-s7",
+            "config_index": 0,
+            "num_nodes": 512,
+            "configuration": {
+                "n_num_qubits": 9,
+                "d_skeleton_regularity": 4,
+                "max_skeleton_locality": 4,
+                "num_perturbations": 12,
+                "max_perturbation_locality": 6,
+                "perturbation_weights_bounds": [
+                    2,
+                    6
+                ],
+                "seed": 7
+            },
+            "skeleton_graph": {
+                "metadata": null,
+                "graph_json": "0000-n9-d4-sl4-p12-pl6-s7/skeleton_graph.graph.json",
+                "laplacian_npy": "0000-n9-d4-sl4-p12-pl6-s7/skeleton_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "definite_order_perturbated_graph": {
+                "metadata": null,
+                "graph_json": "0000-n9-d4-sl4-p12-pl6-s7/definite_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0000-n9-d4-sl4-p12-pl6-s7/definite_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "random_order_perturbated_graph": {
+                "metadata": {
+                    "unweighted_density": 0.015441536203522505,
+                    "weighted_density": 0.029286979420026348,
+                    "weights_sum": 3830.2637392678007
+                },
+                "graph_json": "0000-n9-d4-sl4-p12-pl6-s7/random_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0000-n9-d4-sl4-p12-pl6-s7/random_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "dop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.014807057240704502,
+                    "weighted_density": 0.02682310401639314,
+                    "weights_sum": 3508.891175008485
+                },
+                "graph_json": "0000-n9-d4-sl4-p12-pl6-s7/dop_like_random_graph.graph.json",
+                "laplacian_npy": "0000-n9-d4-sl4-p12-pl6-s7/dop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "rop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.015441536203522505,
+                    "weighted_density": 0.029286979420026348,
+                    "weights_sum": 3831.2054998101667
+                },
+                "graph_json": "0000-n9-d4-sl4-p12-pl6-s7/rop_like_random_graph.graph.json",
+                "laplacian_npy": "0000-n9-d4-sl4-p12-pl6-s7/rop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            }
+        },
+        {
+            "item_idx": 1,
+            "item_id": "0001-n9-d4-sl4-p12-pl6-s11",
+            "config_index": 1,
+            "num_nodes": 512,
+            "configuration": {
+                "n_num_qubits": 9,
+                "d_skeleton_regularity": 4,
+                "max_skeleton_locality": 4,
+                "num_perturbations": 12,
+                "max_perturbation_locality": 6,
+                "perturbation_weights_bounds": [
+                    2,
+                    6
+                ],
+                "seed": 11
+            },
+            "skeleton_graph": {
+                "metadata": null,
+                "graph_json": "0001-n9-d4-sl4-p12-pl6-s11/skeleton_graph.graph.json",
+                "laplacian_npy": "0001-n9-d4-sl4-p12-pl6-s11/skeleton_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "definite_order_perturbated_graph": {
+                "metadata": null,
+                "graph_json": "0001-n9-d4-sl4-p12-pl6-s11/definite_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0001-n9-d4-sl4-p12-pl6-s11/definite_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "random_order_perturbated_graph": {
+                "metadata": {
+                    "unweighted_density": 0.015158696183953033,
+                    "weighted_density": 0.04177786874892465,
+                    "weights_sum": 5517.125376610877
+                },
+                "graph_json": "0001-n9-d4-sl4-p12-pl6-s11/random_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0001-n9-d4-sl4-p12-pl6-s11/random_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "dop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.014172578277886497,
+                    "weighted_density": 0.04163303391984654,
+                    "weights_sum": 5446.266965258645
+                },
+                "graph_json": "0001-n9-d4-sl4-p12-pl6-s11/dop_like_random_graph.graph.json",
+                "laplacian_npy": "0001-n9-d4-sl4-p12-pl6-s11/dop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "rop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.015158696183953033,
+                    "weighted_density": 0.04177786874892465,
+                    "weights_sum": 5465.213678259327
+                },
+                "graph_json": "0001-n9-d4-sl4-p12-pl6-s11/rop_like_random_graph.graph.json",
+                "laplacian_npy": "0001-n9-d4-sl4-p12-pl6-s11/rop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            }
+        },
+        {
+            "item_idx": 2,
+            "item_id": "0002-n9-d4-sl4-p12-pl6-s15",
+            "config_index": 2,
+            "num_nodes": 512,
+            "configuration": {
+                "n_num_qubits": 9,
+                "d_skeleton_regularity": 4,
+                "max_skeleton_locality": 4,
+                "num_perturbations": 12,
+                "max_perturbation_locality": 6,
+                "perturbation_weights_bounds": [
+                    2,
+                    6
+                ],
+                "seed": 15
+            },
+            "skeleton_graph": {
+                "metadata": null,
+                "graph_json": "0002-n9-d4-sl4-p12-pl6-s15/skeleton_graph.graph.json",
+                "laplacian_npy": "0002-n9-d4-sl4-p12-pl6-s15/skeleton_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "definite_order_perturbated_graph": {
+                "metadata": null,
+                "graph_json": "0002-n9-d4-sl4-p12-pl6-s15/definite_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0002-n9-d4-sl4-p12-pl6-s15/definite_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "random_order_perturbated_graph": {
+                "metadata": {
+                    "unweighted_density": 0.018782106164383562,
+                    "weighted_density": 0.039458094660999206,
+                    "weights_sum": 5123.859090606631
+                },
+                "graph_json": "0002-n9-d4-sl4-p12-pl6-s15/random_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0002-n9-d4-sl4-p12-pl6-s15/random_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "dop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.01378271771037182,
+                    "weighted_density": 0.027415390638111894,
+                    "weights_sum": 3586.3717417152457
+                },
+                "graph_json": "0002-n9-d4-sl4-p12-pl6-s15/dop_like_random_graph.graph.json",
+                "laplacian_npy": "0002-n9-d4-sl4-p12-pl6-s15/dop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "rop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.018782106164383562,
+                    "weighted_density": 0.039458094660999206,
+                    "weights_sum": 5161.750111173272
+                },
+                "graph_json": "0002-n9-d4-sl4-p12-pl6-s15/rop_like_random_graph.graph.json",
+                "laplacian_npy": "0002-n9-d4-sl4-p12-pl6-s15/rop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            }
+        },
+        {
+            "item_idx": 3,
+            "item_id": "0003-n9-d4-sl4-p12-pl6-s3213",
+            "config_index": 3,
+            "num_nodes": 512,
+            "configuration": {
+                "n_num_qubits": 9,
+                "d_skeleton_regularity": 4,
+                "max_skeleton_locality": 4,
+                "num_perturbations": 12,
+                "max_perturbation_locality": 6,
+                "perturbation_weights_bounds": [
+                    2,
+                    6
+                ],
+                "seed": 3213
+            },
+            "skeleton_graph": {
+                "metadata": null,
+                "graph_json": "0003-n9-d4-sl4-p12-pl6-s3213/skeleton_graph.graph.json",
+                "laplacian_npy": "0003-n9-d4-sl4-p12-pl6-s3213/skeleton_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "definite_order_perturbated_graph": {
+                "metadata": null,
+                "graph_json": "0003-n9-d4-sl4-p12-pl6-s3213/definite_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0003-n9-d4-sl4-p12-pl6-s3213/definite_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "random_order_perturbated_graph": {
+                "metadata": {
+                    "unweighted_density": 0.01710035469667319,
+                    "weighted_density": 0.045470242859114995,
+                    "weights_sum": 5939.891241258698
+                },
+                "graph_json": "0003-n9-d4-sl4-p12-pl6-s3213/random_order_perturbated_graph.graph.json",
+                "laplacian_npy": "0003-n9-d4-sl4-p12-pl6-s3213/random_order_perturbated_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "dop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.014967588062622309,
+                    "weighted_density": 0.026192264484810334,
+                    "weights_sum": 3426.3672708449485
+                },
+                "graph_json": "0003-n9-d4-sl4-p12-pl6-s3213/dop_like_random_graph.graph.json",
+                "laplacian_npy": "0003-n9-d4-sl4-p12-pl6-s3213/dop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            },
+            "rop_like_random_graph": {
+                "metadata": {
+                    "unweighted_density": 0.01710035469667319,
+                    "weighted_density": 0.045470242859114995,
+                    "weights_sum": 5948.2352898579875
+                },
+                "graph_json": "0003-n9-d4-sl4-p12-pl6-s3213/rop_like_random_graph.graph.json",
+                "laplacian_npy": "0003-n9-d4-sl4-p12-pl6-s3213/rop_like_random_graph.laplacian.npy",
+                "has_spectrum": true
+            }
+        }
+    ]
+}
