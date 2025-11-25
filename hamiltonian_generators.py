@@ -113,8 +113,7 @@ def obtain_ix_n_hamiltonian(
 
 def obtain_random_m_local_perturbation(
     m: int,
-    randomly_weighted: bool = False,
-    weights_range: tuple[float, float] = (0.5, 5.0),
+    weights_range: tuple[float, float] | None = None,
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
@@ -127,7 +126,7 @@ def obtain_random_m_local_perturbation(
     entries = [(i1, i1), (i1, i2), (i2, i1), (i2, i2)]
 
     weights = np.array([1, -1, -1, 1])
-    if randomly_weighted:
+    if weights_range is not None:
         weights = pseudo_rng.uniform(*weights_range) * weights
 
     perturbation_hamiltonian = SparsePauliOp(["I" * m], [0])
@@ -154,7 +153,7 @@ def obtain_random_perturbated_laplacian(
     skeleton_hamiltonian: SparsePauliOp,
     num_perturbations: int,
     max_perturbation_locality: int,
-    random_perturbation_weights: bool = False,
+    random_perturbation_weights_bounds: tuple[float, float] | None = None,
     random_perturbations_scaling: bool = False,
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
@@ -171,7 +170,8 @@ def obtain_random_perturbated_laplacian(
 
         unscaled_perturbation = obtain_random_m_local_perturbation(
             m=perturbation_locality,
-            randomly_weighted=random_perturbation_weights,
+            weights_range=random_perturbation_weights_bounds,
+            simplify=simplify,
             pseudo_rng=pseudo_rng
         )
         scaling_dim = num_qubits - perturbation_locality
