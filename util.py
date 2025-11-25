@@ -15,7 +15,7 @@ class LaplacianDecomposition(NamedTuple):
     A: NDArray[np.float64] # 2D array of dimenions |V| X |V|
 
         
-def decompose_laplacian_matrix(L: NDArray[np.float64]) -> LaplacianDecomposition:
+def decompose_laplacian_matrix(L: NDArray[np.float64] | SparsePauliOp) -> LaplacianDecomposition:
     """Decompose a graph Laplacian matrix into its components.
 
     Args:
@@ -28,6 +28,9 @@ def decompose_laplacian_matrix(L: NDArray[np.float64]) -> LaplacianDecomposition
             - A: Adjacency matrix.
     """
 
+    if isinstance(L, SparsePauliOp):
+        L = L.to_matrix().real
+
     diagonal = np.diag(L)
     D = np.diag(diagonal)
     A = D - L
@@ -35,7 +38,7 @@ def decompose_laplacian_matrix(L: NDArray[np.float64]) -> LaplacianDecomposition
     return LaplacianDecomposition(diagonal, D, A)
 
 
-def transform_laplacian_to_graph(L: NDArray[np.float64]) -> nx.Graph:
+def transform_laplacian_to_graph(L: NDArray[np.float64] | SparsePauliOp) -> nx.Graph:
     """Form a graph object given its Laplacian matrix."""
 
     diagonal, D, A = decompose_laplacian_matrix(L)
@@ -79,3 +82,61 @@ def compute_eigenspectrum_ixn_laplacian(laplacian_hamiltonian: SparsePauliOp) ->
         eigenvalues.append(eigenvalue)
     
     return sorted(eigenvalues)
+
+
+def compute_weighted_density(
+    graph: nx.Graph | None = None,
+    weighted_adjacency_matrix: NDArray[np.float64] | None = None
+) -> float:
+    
+    forbidden_cases = [
+        graph is None and weighted_adjacency_matrix is None,
+        graph is not None and weighted_adjacency_matrix is not None
+    ]
+    if any(forbidden_cases):
+        raise ValueError("Set either graph or weighted_adjacency_matrix")
+        
+    if weighted_adjacency_matrix is None:
+        A = nx.to_numpy_array(graph)
+    else:
+        A = weighted_adjacency_matrix
+    
+    weights_sum = np.sum(A) / 2
+    num_nodes = A.shape[0]
+    possible_edges = (num_nodes * (num_nodes - 1)) / 2
+    
+    weighted_density = weights_sum / possible_edges
+    
+    return weighted_density
+
+
+def obtain_random_weighted_graph(
+    num_nodes: int,
+    required_unweighted_density: float, # Which is going to be the edge-existence probability
+    required_weighted_density: float | None = None,
+    weights_bounds: tuple[float, float] | None = None,
+    seed: int | None = None
+) -> nx.Graph:
+    """TODO COMPLETE."""
+
+    rng = np.random.default_rng(seed)
+    
+    graph = nx.erdos_renyi_graph(n=num_nodes, p=required_unweighted_density, seed=seed)
+    num_edges = graph.number_of_edges()
+    possible_edges = (num_nodes * (num_nodes - 1)) / 2
+
+    if (required_weighted_density is None) == (weights_bounds is None):
+        raise ValueError("Set either required_weighted_density or weights_bounds, but not both.")
+    
+    if weights_bounds is None:
+        expected_total_weight = required_weighted_density * possible_edges
+        expected_weight_per_edge = expected_total_weight / num_edges
+
+        mid_interval = expected_weight_per_edge
+        half_interval = expected_weight_per_edge / 2
+        weights_bounds = (mid_interval - half_interval, mid_interval + half_interval)
+
+    for (u, v) in graph.edges():
+        graph[u][v]["weight"] = rng.uniform(*weights_bounds)
+
+    return graph
