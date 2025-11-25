@@ -10,39 +10,56 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     
 
-def is_valid_laplacian(matrix: NDArray[np.float64] | SparsePauliOp, is_weigthed: bool = True) -> bool:
+class LaplacianValidationError(Exception):
+    """Exception raised when a matrix fails Laplacian validation checks, when the user chooses to."""
+    pass
+
+
+def throw_laplacian_validation_exception(msg: str) -> None:
+    raise LaplacianValidationError(msg)
+
+
+def is_valid_laplacian(
+    matrix: NDArray[np.float64] | SparsePauliOp,
+    is_weigthed: bool = True,
+    throw_exception: bool = False
+) -> bool:
     """Verify that `matrix` is a valid weighted/unweighted Laplacian matrix."""
 
+    action = print
+    if throw_exception:
+        action = throw_laplacian_validation_exception
+        
     if isinstance(matrix, SparsePauliOp):
         matrix = matrix.to_matrix()
 
     if not np.all(np.isreal(matrix)):
-        print("The matrix contains complex numbers")
+        action("The matrix contains complex numbers")
         return False
     
     matrix = matrix.real
         
     if not np.all(matrix == matrix.T):
-        print("The matrix is not symmetric")
+        action("The matrix is not symmetric")
         return False
     
     for row_index, row in enumerate(matrix):
         if not np.isclose(np.sum(row), 0):
-            print(f"The sum of row/column {row_index} is not 0")
+            action(f"The sum of row/column {row_index} is not 0")
             return False
         
     if not is_weigthed:
         if not np.allclose(matrix % 1, 0):
-            print("[Unweighted Laplacian check] Some entry is not an integer")
+            action("[Unweighted Laplacian check] Some entry is not an integer")
             return False
         
         diagonal, D, A = decompose_laplacian_matrix(matrix)
         if not np.all(diagonal >= 0):
-            print("[Unweighted Laplacian check] Some diagonal entry is not a nonnegative integer")
+            action("[Unweighted Laplacian check] Some diagonal entry is not a nonnegative integer")
             return False
 
         if not np.all((A == 0) | (A == 1)):
-            print("[Unweighted Laplacian check] Some non-diagonal entry is not -1 or 0")
+            action("[Unweighted Laplacian check] Some non-diagonal entry is not -1 or 0")
             return False
     
     print(f"The matrix is a valid ({'weighted' if is_weigthed else 'unweighted'}) Laplacian matrix")
