@@ -22,6 +22,7 @@ GRAPH_TYPES = [
     "random_order_perturbated_graph",
     "dop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbated_graph`
     "rop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbated_graph`
+    "rop_like_random_graph_same_weights", # TODO NEW
 ]
 
 

@@ -192,6 +192,22 @@ class LaplacianHamiltoniansGeneration:
             rop_like_random_graph_data = GraphData(graph_obj=rop_like_random_graph)
             config_data["rop_like_random_graph"] = rop_like_random_graph_data
 
+            # Same density Erdos-Renyi graph as the random order perturbated graph + SAME WEIGHTS DISTRIBUTION
+            # TODO DO SOMETHING WITH THIS
+            weights = np.abs(
+                np.triu(random_order_perturbated_graph_data.laplacian_dense_matrix, k=1).flatten()
+            )
+            weights = weights[weights != 0]
+            rop_like_random_graph_same_weights = obtain_random_weighted_graph(
+                num_nodes=random_order_perturbated_graph_data.metadata.num_nodes,
+                required_unweighted_density=random_order_perturbated_graph_data.metadata.unweighted_density,
+                required_weighted_density=random_order_perturbated_graph_data.metadata.weighted_density,
+                seed=config.seed,
+                weights_distribution=weights
+            )
+            rop_like_random_graph_same_weights_data = GraphData(graph_obj=rop_like_random_graph_same_weights)
+            config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
+
             # Same density Erdos-Renyi graph as the definite order perturbated graph
             dop_like_random_graph = obtain_random_weighted_graph(
                 num_nodes=definite_order_perturbated_graph_data.metadata.num_nodes,
@@ -404,12 +420,12 @@ class LaplacianHamiltoniansGeneration:
 
 if __name__ == "__main__":
     ec = ExperimentConfigurations(
-        n_num_qubits=[5, 6],
-        d_skeleton_regularity=[3, 4],
-        max_skeleton_locality=[3],
-        num_perturbations=[6],
-        max_perturbation_locality=[3],
-        perturbation_weights_bounds=[(2, 80)],
+        n_num_qubits=[7],
+        d_skeleton_regularity=[21],
+        max_skeleton_locality=[5],
+        num_perturbations=[22, 44],
+        max_perturbation_locality=[3, 6],
+        perturbation_weights_bounds=[(2, 4)],
         seed=[32],
     )
 
