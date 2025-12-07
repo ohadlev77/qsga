@@ -12,6 +12,7 @@ from typing import Any, Iterable, Callable
 
 import networkx as nx
 import numpy as np
+from scipy import sparse
 from networkx.readwrite import json_graph
 
 
@@ -179,6 +180,15 @@ def _load_array(path: Path) -> np.ndarray:
     return np.load(path, allow_pickle=False)
 
 
+def _save_sparse_matrix(arr: np.ndarray | sparse.spmatrix, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sparse.save_npz(path, sparse.csr_matrix(arr))
+
+
+def _load_sparse_matrix_to_dense(path: Path) -> np.ndarray:
+    return sparse.load_npz(path).toarray()
+
+
 # ----------------------- main API -----------------------
 
 
@@ -261,16 +271,16 @@ def save_dataset(
             _save_graph(g, g_path)
             entry["graph_json"] = str(g_path.relative_to(run_dir))
 
-            # --- laplacian_obj (dense) → .npy on disk ---
+            # --- laplacian_obj (dense) → saved sparsely on disk ---
             L = None
             if isinstance(bundle, dict):
                 L = bundle.get("laplacian_dense_matrix")
             else:
                 L = getattr(bundle, "laplacian_dense_matrix")
 
-            L_path = item_dir / f"{name}.laplacian.npy"
-            _save_array(L, L_path)
-            entry["laplacian_npy"] = str(L_path.relative_to(run_dir))
+            L_path = item_dir / f"{name}.laplacian.npz"
+            _save_sparse_matrix(L, L_path)
+            entry["laplacian_npz"] = str(L_path.relative_to(run_dir))
 
             # --- spectrum (optional) → kept out of manifest; written to spectra.csv below ---
             spec = bundle.get("laplacian_spectrum") if isinstance(bundle, dict) else getattr(bundle, "laplacian_spectrum", None)
@@ -345,7 +355,14 @@ def load_dataset(in_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, An
 
     def rebuild_bundle(meta: dict[str, Any], item_dir: Path, bundle_name: str, spectra_map: dict[str, np.ndarray] | None):
         graph_obj = _load_graph(in_dir / meta["graph_json"])
-        laplacian_obj = _load_array(in_dir / meta["laplacian_npy"])
+        laplacian_path = meta.get("laplacian_npz") or meta.get("laplacian_npy")
+        if laplacian_path is None:
+            raise ValueError(f"Missing laplacian path for bundle '{bundle_name}' in manifest.")
+        laplacian_full_path = in_dir / laplacian_path
+        if laplacian_full_path.suffix == ".npz":
+            laplacian_obj = _load_sparse_matrix_to_dense(laplacian_full_path)
+        else:
+            laplacian_obj = _load_array(laplacian_full_path)
         laplacian_spectrum = None
         if spectra_map and bundle_name in spectra_map:
             laplacian_spectrum = spectra_map[bundle_name]
