@@ -1,0 +1,18 @@
+{
+    "item_idx": 1,
+    "item_id": "0001-n12-d21-sl5-p288-pl8-s32",
+    "created_at": "2025-12-09T22:27:17+02:00",
+    "config_index": 1,
+    "configuration": {
+        "n_num_qubits": 12,
+        "d_skeleton_regularity": 21,
+        "max_skeleton_locality": 5,
+        "num_perturbations": 288,
+        "max_perturbation_locality": 8,
+        "perturbation_weights_bounds": [
+            2,
+            6
+        ],
+        "seed": 32
+    }
+}

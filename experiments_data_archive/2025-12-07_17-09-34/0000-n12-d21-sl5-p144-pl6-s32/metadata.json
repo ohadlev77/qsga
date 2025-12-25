@@ -1,0 +1,18 @@
+{
+    "item_idx": 0,
+    "item_id": "0000-n12-d21-sl5-p144-pl6-s32",
+    "created_at": "2025-12-07T17:09:34+02:00",
+    "config_index": 0,
+    "configuration": {
+        "n_num_qubits": 12,
+        "d_skeleton_regularity": 21,
+        "max_skeleton_locality": 5,
+        "num_perturbations": 144,
+        "max_perturbation_locality": 6,
+        "perturbation_weights_bounds": [
+            2,
+            4
+        ],
+        "seed": 32
+    }
+}
