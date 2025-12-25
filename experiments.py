@@ -12,7 +12,7 @@ from qiskit.quantum_info import SparsePauliOp
 from hamiltonian_generators import obtain_ix_n_hamiltonian, obtain_random_perturbated_laplacian
 from data_verifiers import is_valid_laplacian
 from util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
-from data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES
+from data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -174,7 +174,7 @@ class LaplacianHamiltoniansGeneration:
             )
             random_order_perturbated_graph_data = GraphData(laplacian_sparse_obj=random_order_perturbated_laplacian)
 
-            config_data = {
+            config_data: dict[str, int | str | GraphData] = {
                 "config_index": config_index,
                 "configuration": config,
                 "skeleton_graph": skeleton_graph_data,
@@ -233,9 +233,11 @@ class LaplacianHamiltoniansGeneration:
         pass 
 
     def save_results(self, data_dir_path: str | Path) -> None:
+        self.data_dir_path = data_dir_path
+
         self.manifest_data = save_dataset(
             self.data,
-            data_dir_path,
+            self.data_dir_path,
             experiment_metadata=self.metadata,
         )
 
@@ -244,7 +246,7 @@ class LaplacianHamiltoniansGeneration:
         plot_window_start: float = 0.0,
         plot_window_ends: float = 1.0,
         merge_plots: bool = True,
-        exclude_graphs: Iterable[str] = ("definite_order_perturbated_graph", "dop_like_random_graph"),
+        exclude_graphs: Iterable[str] = EXCLUDE_GRAPHS,
     ) -> None:
         """
         *** THIS METHOD IS VIBE-CODED *** 
@@ -409,6 +411,22 @@ class LaplacianHamiltoniansGeneration:
             merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
             plt.close(merged_fig)
 
+    def plot_matrices(self, exclude_graphs: Iterable[str] = EXCLUDE_GRAPHS) -> None:
+        """TODO COMPLETE."""
+
+        for config_data in self.data:
+            config_data_path = Path(
+                self.metadata["run_metadata"]["run_dir"],
+                self.manifest_data["items"][config_data["config_index"]]["item_id"]
+            )
+
+            for graph_name in GRAPH_TYPES:
+                if graph_name in exclude_graphs:
+                    continue
+            
+                plt.spy(config_data[graph_name].laplacian_dense_matrix)
+                plt.savefig(Path(config_data_path, f"{graph_name}_laplacian.png"))
+
     def run_all(self, filepath: str) -> None:
         """TODO THIS METHOD IS DUMMY FOR NOW."""
 
@@ -420,12 +438,12 @@ class LaplacianHamiltoniansGeneration:
 
 if __name__ == "__main__":
     ec = ExperimentConfigurations(
-        n_num_qubits=[7],
+        n_num_qubits=[12],
         d_skeleton_regularity=[21],
         max_skeleton_locality=[5],
-        num_perturbations=[22, 44],
-        max_perturbation_locality=[3, 6],
-        perturbation_weights_bounds=[(2, 4)],
+        num_perturbations=[12**2, 2*(12**2)],
+        max_perturbation_locality=[6, 9],
+        perturbation_weights_bounds=[(2, 6)],
         seed=[32],
     )
 
@@ -445,6 +463,7 @@ if __name__ == "__main__":
     experiment.save_results("experiments_data_archive")
     
     experiment.plot_results()
+    experiment.plot_matrices()
 
     # rexp = LaplacianHamiltoniansGeneration.from_data(
     #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive/2025-11-05_14-49-35"
