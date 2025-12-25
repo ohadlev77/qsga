@@ -160,7 +160,6 @@ def obtain_random_perturbated_laplacian(
 ) -> SparsePauliOp:
     """TODO COMPLETE."""
 
-    num_nodes = skeleton_hamiltonian.dim
     num_qubits = skeleton_hamiltonian.num_qubits
     perturbated_hamiltonian = deepcopy(skeleton_hamiltonian)
 
@@ -176,8 +175,9 @@ def obtain_random_perturbated_laplacian(
         )
         scaling_dim = num_qubits - perturbation_locality
 
+        # TODO CAN WE FIND A WAY TO BREAK THE PERTURBATION STRING ITSELF INTO DISTINCT PIECES?
         if random_perturbations_scaling:
-            threshold = pseudo_rng.integers(scaling_dim) + 1
+            threshold = pseudo_rng.integers(scaling_dim + 1)
             scaled_perturbation = SparsePauliOp("I" * threshold).tensor(unscaled_perturbation).tensor(
                 SparsePauliOp("I" * (scaling_dim - threshold))
             )
