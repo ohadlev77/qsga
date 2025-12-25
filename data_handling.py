@@ -25,6 +25,8 @@ GRAPH_TYPES = [
     "rop_like_random_graph_same_weights", # TODO NEW
 ]
 
+EXCLUDE_GRAPHS = ("definite_order_perturbated_graph", "dop_like_random_graph")
+
 
 # ----------------------- utilities -----------------------
 
