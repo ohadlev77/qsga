@@ -1,4 +1,4 @@
-"""Vibe-coded with ChatGPT."""
+"""This module is totally vibe-code. It takes care of all data saving and loading operations."""
 
 from __future__ import annotations
 

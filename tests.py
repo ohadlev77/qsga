@@ -5,6 +5,8 @@ from util import compute_eigenspectrum_ixn_laplacian
 
 
 def test_compute_eigenspectrum_ixn_laplacian() -> None:
+    """For skeleton IX_n Laplacians, test that analytic and numeric eigenvalue computation methods match."""
+
     rng = np.random.default_rng(20)
     n = 3
 

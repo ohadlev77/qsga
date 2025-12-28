@@ -9,11 +9,11 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
-# Basis elements for all 2X2 matrices, building blocks for bases of all 2^nX2^n matrices
-OP00 = SparsePauliOp(data=["I", "Z"], coeffs=[0.5, 0.5])
-OP01 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, 0.5j])
-OP10 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, -0.5j])
-OP11 = SparsePauliOp(data=["I", "Z"], coeffs=[0.5, -0.5])
+# Basis elements for all 2X2 matrices, building blocks for bases of all 2^n X 2^n matrices
+OP00 = SparsePauliOp(data=["I", "Z"], coeffs=[0.5, 0.5]) # |0><0|
+OP01 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, 0.5j]) # |0><1|
+OP10 = SparsePauliOp(data=["X", "Y"], coeffs=[0.5, -0.5j]) # |1><0|
+OP11 = SparsePauliOp(data=["I", "Z"], coeffs=[0.5, -0.5]) # |1><1|
 BASIS_OPERATORS = [OP00, OP01, OP10, OP11]
 
 
@@ -117,7 +117,19 @@ def obtain_random_m_local_perturbation(
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
-    """TODO COMPLETE."""
+    """Generate a random $m$-local perturbation as a `SparsePauliOp`.
+
+    Creates a perturbation operator acting on $m$ qubits.
+
+    Args:
+        m: Number of qubits the perturbation acts on (locality).
+        weights_range: Optional tuple (min, max) for scaling the perturbation weights.
+        simplify: Whether to simplify (= merge identical Pauli terms) the resulting SparsePauliOp. Defaults to True.
+        pseudo_rng: Random number generator instance.
+
+    Returns:
+        SparsePauliOp: The m-local perturbation Hamiltonian.
+    """
 
     local_hilbert_dim = 2 ** m
 
@@ -158,7 +170,21 @@ def obtain_random_perturbated_laplacian(
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
-    """TODO COMPLETE."""
+    """Generate a random perturbated Laplacian Hamiltonian by applying multiple
+    local perturbations to a skeleton Hamiltonian.
+
+    Args:
+        skeleton_hamiltonian: The base Hamiltonian to perturb.
+        num_perturbations: The number of perturbations to apply.
+        max_perturbation_locality: The maximum locality of each perturbation.
+        random_perturbation_weights_bounds: Optional bounds for the perturbation weights.
+        random_perturbations_scaling: Whether to apply scaling to the perturbations.
+        simplify: Whether to simplify (= merge identical Pauli terms) the resulting SparsePauliOp. Defaults to True.
+        pseudo_rng: Random number generator instance.
+
+    Returns:
+        SparsePauliOp: The resulting perturbated Laplacian Hamiltonian.
+    """
 
     num_qubits = skeleton_hamiltonian.num_qubits
     perturbated_hamiltonian = deepcopy(skeleton_hamiltonian)

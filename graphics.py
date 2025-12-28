@@ -48,6 +48,7 @@ def obtain_math_text_hermitian_spectrum(
 def sparse_pauli_op_to_latex(sparse_pauli_op: SparsePauliOp) -> str:
     """
     Convert a SparsePauliOp object to LaTeX format for nice display with IPython.Math().
+    ### NOTE: THIS FUNCTION HAS BEEN COMPLETELY VIBE-CODED. ###
     
     Args:
         sparse_pauli_op: A SparsePauliOp object from Qiskit
