@@ -8,7 +8,7 @@ QSGA research contents.
 
 1. [Whitepaper #2 - Initial Experimentation and Results](https://ohadlev77.github.io/qsga/whitepapers_html/2__qsga_whitepaper_2__initial_experimentation_and_results.html).
 
-1. [Whitepaper #3](https://ohadlev77.github.io/qsga/whitepapers_html/3__qsga_whitepaper_3.html) - Initial draft.
+1. [Whitepaper #3 - Spectral Triviality of $IX_n$ Laplacians](https://ohadlev77.github.io/qsga/whitepapers_html/3__qsga_whitepaper_3__spectral_triviality_of_ixn_laplacians.html).
 
 1. [Whitepaper #4 - Laplacian Hamiltonians Perturbation Method](https://ohadlev77.github.io/qsga/whitepapers_html/4__qsga_whitepaper_4__laplacian_hamiltonians_perturbation_method.html) - Advanced draft.
 
