@@ -46,7 +46,10 @@ def transform_laplacian_to_graph(L: NDArray[np.float64] | SparsePauliOp) -> nx.G
     return nx.from_numpy_array(np.real(A))
 
 
-def compute_eigenspectrum_ixn_laplacian(laplacian_hamiltonian: SparsePauliOp) -> list[float]:
+def compute_eigenspectrum_ixn_laplacian(
+    laplacian_hamiltonian: SparsePauliOp,
+    sort: bool = False
+) -> list[float]:
     r"""Analytically compute the (trivial) eigenspectrum of the IX_n Laplacian Hamiltonian.
     The analytical form of the eigenvalues is:
         $$ \lambda_k(L) = d - \sum_{P \in S} (-1)^{k \cdot m_P} $$
@@ -58,15 +61,16 @@ def compute_eigenspectrum_ixn_laplacian(laplacian_hamiltonian: SparsePauliOp) ->
 
     Args:
         laplacian_hamiltonian: The IX_n Laplacian Hamiltonian in a sparse Pauli representation.
+        sort: Whether to sort the eigenvalues (ascending order00).
 
     Returns:
         list[float]: The (sorted) eigenspectrum of the IX_n Laplacian Hamiltonian.
     """
 
-    degree = np.real(laplacian_hamiltonian.coeffs[0])
+    degree = np.real(laplacian_hamiltonian.coeffs[0]) # d
 
-    num_nodes = laplacian_hamiltonian.dim[0]
-    num_qubits = len(laplacian_hamiltonian.paulis[0].to_label())
+    num_nodes = laplacian_hamiltonian.dim[0] # |V|
+    num_qubits = len(laplacian_hamiltonian.paulis[0].to_label()) # n
     
     eigenvalues = []
     for eigenvalue_index in range(num_nodes):
@@ -81,8 +85,8 @@ def compute_eigenspectrum_ixn_laplacian(laplacian_hamiltonian: SparsePauliOp) ->
             eigenvalue -= (-1) ** (exponent)
 
         eigenvalues.append(eigenvalue)
-    
-    return sorted(eigenvalues)
+
+    return sorted(eigenvalues) if sort else eigenvalues
 
 
 def compute_weighted_density(
