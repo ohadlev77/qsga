@@ -166,20 +166,21 @@ def obtain_random_perturbed_laplacian(
     num_perturbations: int,
     max_perturbation_locality: int,
     random_perturbation_weights_bounds: tuple[float, float] | None = None,
-    random_perturbations_scaling: bool = False,
+    random_perturbations_scaling: bool = True,
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
     """Generate a random perturbed Laplacian Hamiltonian by applying multiple
-    local perturbations to a skeleton Hamiltonian.
+    local perturbations to a Skeleton Laplacian Hamiltonian.
 
     Args:
         skeleton_hamiltonian: The base Hamiltonian to perturb.
         num_perturbations: The number of perturbations to apply.
         max_perturbation_locality: The maximum locality of each perturbation.
         random_perturbation_weights_bounds: Optional bounds for the perturbation weights.
-        random_perturbations_scaling: Whether to apply scaling to the perturbations.
-        simplify: Whether to simplify (= merge identical Pauli terms) the resulting SparsePauliOp. Defaults to True.
+        random_perturbations_scaling: Whether to apply random scaling to the perturbations (when `True`, default),
+        or definite scaling (when `False`) = all identities applied from the left.
+        simplify: Whether to simplify (= merge identical Pauli terms) the resulting `SparsePauliOp`. Defaults to True.
         pseudo_rng: Random number generator instance.
 
     Returns:
@@ -216,17 +217,3 @@ def obtain_random_perturbed_laplacian(
         perturbed_hamiltonian = perturbed_hamiltonian.simplify()
 
     return perturbed_hamiltonian
-
-
-if __name__ == "__main__":
-    H = obtain_skeleton_laplacian(n=4, d=3, max_locality=2)
-
-    r = obtain_random_perturbed_laplacian(
-        skeleton_hamiltonian=H,
-        num_perturbations=4,
-        max_perturbation_locality=2,
-        random_perturbation_weights=True,
-        random_perturbations_scaling=True,
-    )
-
-    print(r)
