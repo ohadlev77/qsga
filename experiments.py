@@ -9,7 +9,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 
-from hamiltonian_generators import obtain_ix_n_hamiltonian, obtain_random_perturbated_laplacian
+from hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbated_laplacian
 from data_verifiers import is_valid_laplacian
 from util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
 from data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
@@ -235,7 +235,7 @@ class LaplacianHamiltoniansGeneration:
         for config_index, config in enumerate(self.configurations):
 
             # Skeleton Laplacian
-            skeleton_laplacian = obtain_ix_n_hamiltonian(
+            skeleton_laplacian = obtain_skeleton_laplacian(
                 n=config.n_num_qubits,
                 d=config.d_skeleton_regularity,
                 max_locality=config.max_skeleton_locality,

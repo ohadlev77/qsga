@@ -80,13 +80,13 @@ def obtain_random_pauli_strings(
     return list(pauli_strings)
 
 
-def obtain_ix_n_hamiltonian(
+def obtain_skeleton_laplacian(
     n: int,
     d: int,
     max_locality: int | None = None,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
-    """Generate an IX_n Laplacian Hamiltonian over `n` qubits (2^n nodes) and `d`-regularity.
+    """Generate a Skeleton Laplacian Hamiltonian over `n` qubits (2^n nodes) and `d`-regularity.
 
     Args:
         n: Number of qubits (log2 of number of nodes).
@@ -219,7 +219,7 @@ def obtain_random_perturbated_laplacian(
 
 
 if __name__ == "__main__":
-    H = obtain_ix_n_hamiltonian(n=4, d=3, max_locality=2)
+    H = obtain_skeleton_laplacian(n=4, d=3, max_locality=2)
 
     r = obtain_random_perturbated_laplacian(
         skeleton_hamiltonian=H,

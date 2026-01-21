@@ -46,11 +46,11 @@ def transform_laplacian_to_graph(L: NDArray[np.float64] | SparsePauliOp) -> nx.G
     return nx.from_numpy_array(np.real(A))
 
 
-def compute_eigenspectrum_ixn_laplacian(
+def compute_eigenspectrum_skeleton_laplacian(
     laplacian_hamiltonian: SparsePauliOp,
     sort: bool = False
 ) -> list[float]:
-    r"""Analytically compute the (trivial) eigenspectrum of the IX_n Laplacian Hamiltonian.
+    r"""Analytically compute the (trivial) eigenspectrum of the Skeleton Laplacian Hamiltonian.
     The analytical form of the eigenvalues is:
         $$ \lambda_k(L) = d - \sum_{P \in S} (-1)^{k \cdot m_P} $$
     Where:
@@ -60,11 +60,11 @@ def compute_eigenspectrum_ixn_laplacian(
         * $m_P$ is the *binary mask* of $P$. For example, $P = IXIX \implies m_P = 0101$.
 
     Args:
-        laplacian_hamiltonian: The IX_n Laplacian Hamiltonian in a sparse Pauli representation.
+        laplacian_hamiltonian: The Skeleton Laplacian Hamiltonian in a sparse Pauli representation.
         sort: Whether to sort the eigenvalues (ascending order00).
 
     Returns:
-        list[float]: The (sorted) eigenspectrum of the IX_n Laplacian Hamiltonian.
+        list[float]: The (sorted) eigenspectrum of the Skeleton Laplacian Hamiltonian.
     """
 
     degree = np.real(laplacian_hamiltonian.coeffs[0]) # d
