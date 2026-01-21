@@ -18,14 +18,14 @@ from networkx.readwrite import json_graph
 
 GRAPH_TYPES = [
     "skeleton_graph",
-    "definite_order_perturbated_graph", 
-    "random_order_perturbated_graph",
-    "dop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbated_graph`
-    "rop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbated_graph`
+    "definite_order_perturbed_graph", 
+    "random_order_perturbed_graph",
+    "dop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbed_graph`
+    "rop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbed_graph`
     "rop_like_random_graph_same_weights", # TODO NEW
 ]
 
-EXCLUDE_GRAPHS = ("definite_order_perturbated_graph", "dop_like_random_graph")
+EXCLUDE_GRAPHS = ("definite_order_perturbed_graph", "dop_like_random_graph")
 
 
 # ----------------------- utilities -----------------------

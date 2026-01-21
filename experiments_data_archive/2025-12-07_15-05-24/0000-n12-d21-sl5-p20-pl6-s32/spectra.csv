@@ -1,4 +1,4 @@
-k,skeleton_graph,definite_order_perturbated_graph,random_order_perturbated_graph,dop_like_random_graph,rop_like_random_graph,rop_like_random_graph_same_weights
+k,skeleton_graph,definite_order_perturbed_graph,random_order_perturbed_graph,dop_like_random_graph,rop_like_random_graph,rop_like_random_graph_same_weights
 0,-2.4868995751603507e-14,9.947598300641403e-14,2.2737367544323206e-13,-1.7053025658242404e-13,1.0658141036401503e-13,2.725319969698603e-13
 1,5.999999999999936,7.753772495741984,10.000000000000234,11.917919813584703,14.416357984198399,9.909479704776174
 2,5.999999999999972,8.000000000000092,10.720197065402616,14.558348858526756,14.52608993149984,10.49733529766051

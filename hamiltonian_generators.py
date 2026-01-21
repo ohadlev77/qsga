@@ -94,7 +94,7 @@ def obtain_skeleton_laplacian(
         max_locality: Maximum locality of the Pauli strings used in the Hamiltonian.
 
     Returns:
-        SparsePauliOp: The IX_n Laplacian Hamiltonian in a sparse Pauli representation.
+        SparsePauliOp: The Skeleton Laplacian Hamiltonian in a sparse Pauli representation.
     """
 
     ops = ["I" * n]
@@ -161,7 +161,7 @@ def obtain_random_m_local_perturbation(
     return perturbation_hamiltonian
 
 
-def obtain_random_perturbated_laplacian(
+def obtain_random_perturbed_laplacian(
     skeleton_hamiltonian: SparsePauliOp,
     num_perturbations: int,
     max_perturbation_locality: int,
@@ -170,7 +170,7 @@ def obtain_random_perturbated_laplacian(
     simplify: bool = True,
     pseudo_rng: Generator = np.random.default_rng() # No predefined seed as default
 ) -> SparsePauliOp:
-    """Generate a random perturbated Laplacian Hamiltonian by applying multiple
+    """Generate a random perturbed Laplacian Hamiltonian by applying multiple
     local perturbations to a skeleton Hamiltonian.
 
     Args:
@@ -183,11 +183,11 @@ def obtain_random_perturbated_laplacian(
         pseudo_rng: Random number generator instance.
 
     Returns:
-        SparsePauliOp: The resulting perturbated Laplacian Hamiltonian.
+        SparsePauliOp: The resulting perturbed Laplacian Hamiltonian.
     """
 
     num_qubits = skeleton_hamiltonian.num_qubits
-    perturbated_hamiltonian = deepcopy(skeleton_hamiltonian)
+    perturbed_hamiltonian = deepcopy(skeleton_hamiltonian)
 
     # Adding perturbations
     for _ in range(num_perturbations):
@@ -208,20 +208,20 @@ def obtain_random_perturbated_laplacian(
                 SparsePauliOp("I" * (scaling_dim - threshold))
             )
 
-            perturbated_hamiltonian += scaled_perturbation
+            perturbed_hamiltonian += scaled_perturbation
         else:
-            perturbated_hamiltonian += SparsePauliOp("I" * scaling_dim).tensor(unscaled_perturbation)
+            perturbed_hamiltonian += SparsePauliOp("I" * scaling_dim).tensor(unscaled_perturbation)
     
     if simplify:
-        perturbated_hamiltonian = perturbated_hamiltonian.simplify()
+        perturbed_hamiltonian = perturbed_hamiltonian.simplify()
 
-    return perturbated_hamiltonian
+    return perturbed_hamiltonian
 
 
 if __name__ == "__main__":
     H = obtain_skeleton_laplacian(n=4, d=3, max_locality=2)
 
-    r = obtain_random_perturbated_laplacian(
+    r = obtain_random_perturbed_laplacian(
         skeleton_hamiltonian=H,
         num_perturbations=4,
         max_perturbation_locality=2,

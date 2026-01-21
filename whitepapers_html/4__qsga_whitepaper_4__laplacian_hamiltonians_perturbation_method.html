@@ -7562,7 +7562,7 @@ a.anchor-link {
 <span class="kn">from</span><span class="w"> </span><span class="nn">hamiltonian_generators</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">obtain_ix_n_hamiltonian</span><span class="p">,</span>
     <span class="n">obtain_random_m_local_perturbation</span><span class="p">,</span>
-    <span class="n">obtain_random_perturbated_laplacian</span>
+    <span class="n">obtain_random_perturbed_laplacian</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">data_verifiers</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_valid_laplacian</span>
 </pre></div>
@@ -7588,7 +7588,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="What-do-we-want?">What do we want?<a class="anchor-link" href="#What-do-we-want?">¶</a></h2><p>Given an $IX_n$ Laplacian Hamiltonian $\mathbf{L} \in \mathbb{R}^{2^n \times 2^n}$, our goal is to <em>perturbate</em> $\mathbf{L}$ in $\mathrm{poly}(n) = \mathrm{polylog}(|V|)$ steps (= efficiently), such that the resulting (weighted) <em>perturbated Laplacian Hamiltonian</em> $\mathbf{L}' \in \mathbb{R}^{2^n \times 2^n}$, has a non-trivial spectrum.</p>
+<h2 id="What-do-we-want?">What do we want?<a class="anchor-link" href="#What-do-we-want?">¶</a></h2><p>Given an $IX_n$ Laplacian Hamiltonian $\mathbf{L} \in \mathbb{R}^{2^n \times 2^n}$, our goal is to <em>perturbate</em> $\mathbf{L}$ in $\mathrm{poly}(n) = \mathrm{polylog}(|V|)$ steps (= efficiently), such that the resulting (weighted) <em>perturbed Laplacian Hamiltonian</em> $\mathbf{L}' \in \mathbb{R}^{2^n \times 2^n}$, has a non-trivial spectrum.</p>
 </div>
 </div>
 </div>
@@ -8154,27 +8154,27 @@ $$
     <span class="n">max_locality</span><span class="o">=</span><span class="n">MAX_SKELETON_LOCALITY</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L1_p</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L1_p</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L1</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L1_pr</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L1_pr</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L1</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
     <span class="n">random_perturbations_scaling</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 
-<span class="n">L1_pw</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L1_pw</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L1</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
     <span class="n">random_perturbation_weights</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L1_pwr</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L1_pwr</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L1</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
@@ -8260,27 +8260,27 @@ The matrix is a valid (weighted) Laplacian matrix
     <span class="n">max_locality</span><span class="o">=</span><span class="n">MAX_SKELETON_LOCALITY</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L2_p</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L2_p</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L2</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L2_pr</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L2_pr</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L2</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
     <span class="n">random_perturbations_scaling</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 
-<span class="n">L2_pw</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L2_pw</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L2</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>
     <span class="n">random_perturbation_weights</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">L2_pwr</span> <span class="o">=</span> <span class="n">obtain_random_perturbated_laplacian</span><span class="p">(</span>
+<span class="n">L2_pwr</span> <span class="o">=</span> <span class="n">obtain_random_perturbed_laplacian</span><span class="p">(</span>
     <span class="n">skeleton_hamiltonian</span><span class="o">=</span><span class="n">L2</span><span class="p">,</span>
     <span class="n">num_perturbations</span><span class="o">=</span><span class="n">NUM_PERTUBATIONS</span><span class="p">,</span>
     <span class="n">max_perturbation_locality</span><span class="o">=</span><span class="n">MAX_PERTUBATION_DIM</span><span class="p">,</span>

@@ -9,7 +9,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 
-from hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbated_laplacian
+from hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbed_laplacian
 from data_verifiers import is_valid_laplacian
 from util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
 from data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
@@ -227,8 +227,8 @@ class LaplacianHamiltoniansGeneration:
         
         For each configuration, generates:
         - Skeleton Laplacian graph.
-        - Definite-order perturbated Laplacian - legacy, consider remove TODO.
-        - Random-order perturbated (ROP) Laplacian.
+        - Definite-order perturbed Laplacian - legacy, consider remove TODO.
+        - Random-order perturbed (ROP) Laplacian.
         - Random graphs with matching densities.
         """
 
@@ -243,7 +243,7 @@ class LaplacianHamiltoniansGeneration:
             )
             skeleton_graph_data = GraphData(laplacian_sparse_obj=skeleton_laplacian)
 
-            # Perturbated Laplacians
+            # perturbed Laplacians
             kwargs = dict(
                 skeleton_hamiltonian=skeleton_laplacian,
                 num_perturbations=config.num_perturbations,
@@ -251,59 +251,59 @@ class LaplacianHamiltoniansGeneration:
                 random_perturbation_weights_bounds=config.perturbation_weights_bounds,
             )
             
-            definite_order_perturbated_laplacian = obtain_random_perturbated_laplacian(
+            definite_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
                 **kwargs,
                 random_perturbations_scaling=False,
                 pseudo_rng=np.random.default_rng(seed=config.seed)
             )
-            definite_order_perturbated_graph_data = GraphData(laplacian_sparse_obj=definite_order_perturbated_laplacian)
+            definite_order_perturbed_graph_data = GraphData(laplacian_sparse_obj=definite_order_perturbed_laplacian)
             
-            random_order_perturbated_laplacian = obtain_random_perturbated_laplacian(
+            random_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
                 **kwargs,
                 random_perturbations_scaling=True,
                 pseudo_rng=np.random.default_rng(seed=config.seed)
             )
-            random_order_perturbated_graph_data = GraphData(laplacian_sparse_obj=random_order_perturbated_laplacian)
+            random_order_perturbed_graph_data = GraphData(laplacian_sparse_obj=random_order_perturbed_laplacian)
 
             config_data: dict[str, int | str | GraphData] = {
                 "config_index": config_index,
                 "configuration": config,
                 "skeleton_graph": skeleton_graph_data,
-                "definite_order_perturbated_graph": definite_order_perturbated_graph_data,
-                "random_order_perturbated_graph": random_order_perturbated_graph_data,
+                "definite_order_perturbed_graph": definite_order_perturbed_graph_data,
+                "random_order_perturbed_graph": random_order_perturbed_graph_data,
             }
 
-            # Same density Erdos-Renyi graph as the random order perturbated graph
+            # Same density Erdos-Renyi graph as the random order perturbed graph
             rop_like_random_graph = obtain_random_weighted_graph(
-                num_nodes=random_order_perturbated_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_perturbated_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_perturbated_graph_data.metadata.weighted_density,
+                num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
+                required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
+                required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
                 seed=config.seed
             )
             rop_like_random_graph_data = GraphData(graph_obj=rop_like_random_graph)
             config_data["rop_like_random_graph"] = rop_like_random_graph_data
 
-            # Same density Erdos-Renyi graph as the random order perturbated graph + SAME WEIGHTS DISTRIBUTION
+            # Same density Erdos-Renyi graph as the random order perturbed graph + SAME WEIGHTS DISTRIBUTION
             # TODO DO SOMETHING WITH THIS
             weights = np.abs(
-                np.triu(random_order_perturbated_graph_data.laplacian_dense_matrix, k=1).flatten()
+                np.triu(random_order_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
             )
             weights = weights[weights != 0]
             rop_like_random_graph_same_weights = obtain_random_weighted_graph(
-                num_nodes=random_order_perturbated_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_perturbated_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_perturbated_graph_data.metadata.weighted_density,
+                num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
+                required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
+                required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
                 seed=config.seed,
                 weights_distribution=weights
             )
             rop_like_random_graph_same_weights_data = GraphData(graph_obj=rop_like_random_graph_same_weights)
             config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
 
-            # Same density Erdos-Renyi graph as the definite order perturbated graph
+            # Same density Erdos-Renyi graph as the definite order perturbed graph
             dop_like_random_graph = obtain_random_weighted_graph(
-                num_nodes=definite_order_perturbated_graph_data.metadata.num_nodes,
-                required_unweighted_density=definite_order_perturbated_graph_data.metadata.unweighted_density,
-                required_weighted_density=definite_order_perturbated_graph_data.metadata.weighted_density,
+                num_nodes=definite_order_perturbed_graph_data.metadata.num_nodes,
+                required_unweighted_density=definite_order_perturbed_graph_data.metadata.unweighted_density,
+                required_weighted_density=definite_order_perturbed_graph_data.metadata.weighted_density,
                 seed=config.seed
             )
             dop_like_random_graph_data = GraphData(graph_obj=dop_like_random_graph)

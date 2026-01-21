@@ -456,9 +456,9 @@
                     "weighted_density": 0.005128205128205128
                 }
             },
-            "definite_order_perturbated_graph": {
-                "graph_json": "0000-n12-d21-sl5-p20-pl6-s32/definite_order_perturbated_graph.graph.json",
-                "laplacian_npz": "0000-n12-d21-sl5-p20-pl6-s32/definite_order_perturbated_graph.laplacian.npz",
+            "definite_order_perturbed_graph": {
+                "graph_json": "0000-n12-d21-sl5-p20-pl6-s32/definite_order_perturbed_graph.graph.json",
+                "laplacian_npz": "0000-n12-d21-sl5-p20-pl6-s32/definite_order_perturbed_graph.laplacian.npz",
                 "has_spectrum": true,
                 "laplacian_pauli_repr": [
                     [
@@ -6598,9 +6598,9 @@
                     "weighted_density": 0.009906452106298121
                 }
             },
-            "random_order_perturbated_graph": {
-                "graph_json": "0000-n12-d21-sl5-p20-pl6-s32/random_order_perturbated_graph.graph.json",
-                "laplacian_npz": "0000-n12-d21-sl5-p20-pl6-s32/random_order_perturbated_graph.laplacian.npz",
+            "random_order_perturbed_graph": {
+                "graph_json": "0000-n12-d21-sl5-p20-pl6-s32/random_order_perturbed_graph.graph.json",
+                "laplacian_npz": "0000-n12-d21-sl5-p20-pl6-s32/random_order_perturbed_graph.laplacian.npz",
                 "has_spectrum": true,
                 "laplacian_pauli_repr": [
                     [
