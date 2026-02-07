@@ -1,7 +1,7 @@
 import numpy as np
 
-from hamiltonian_generators import obtain_skeleton_laplacian
-from util import compute_eigenspectrum_skeleton_laplacian
+from qsga.hamiltonian_generators import obtain_skeleton_laplacian
+from qsga.util import compute_eigenspectrum_skeleton_laplacian
 
 
 def test_compute_eigenspectrum_skeleton_laplacian() -> None:
@@ -17,7 +17,7 @@ def test_compute_eigenspectrum_skeleton_laplacian() -> None:
         pseudo_rng=rng,
     )
 
-    analytic_eigs = compute_eigenspectrum_skeleton_laplacian(laplacian)
+    analytic_eigs = compute_eigenspectrum_skeleton_laplacian(laplacian, sort=True)
     numeric_eigs = np.linalg.eigvalsh(laplacian.to_matrix().real)
 
     np.testing.assert_allclose(analytic_eigs, numeric_eigs, rtol=1)
