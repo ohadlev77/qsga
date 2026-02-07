@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
-from util import decompose_laplacian_matrix
+from qsga.util import decompose_laplacian_matrix
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

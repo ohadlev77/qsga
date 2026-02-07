@@ -9,10 +9,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 
-from hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbed_laplacian
-from data_verifiers import is_valid_laplacian
-from util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
-from data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
+from qsga.hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbed_laplacian
+from qsga.data_verifiers import is_valid_laplacian
+from qsga.util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
+from qsga.data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
