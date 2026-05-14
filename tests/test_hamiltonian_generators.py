@@ -1,7 +1,15 @@
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-from qsga.hamiltonian_generators import embed_on_fixed_targets
+from qsga.hamiltonian_generators import (
+    embed_on_fixed_targets,
+    obtain_random_pauli_strings,
+    obtain_skeleton_laplacian,
+    obtain_random_m_local_perturbation,
+    scale_m_local_perturbation,
+    obtain_random_perturbed_laplacian,
+    PerturbationScalingMethod
+)
 
 
 # If `VERBOSE is True`, the scaling process is printed by the tests below upon `pytest -s`
@@ -139,3 +147,79 @@ def test_embed_on_fixed_targets_complex_coeffs():
         
     expected_op = SparsePauliOp(["XIIIX", "YIIIY", "ZIIIZ"], [1j, -1j, 2+3j])
     assert embedded_op == expected_op
+
+
+def test_obtain_random_pauli_strings():
+    import numpy as np
+    rng = np.random.default_rng(42)
+    strings = obtain_random_pauli_strings(strings_length=3, num_strings=2, basis_paulis={"I", "X"}, locality=2, pseudo_rng=rng)
+    assert len(strings) == 2
+    for s in strings:
+        assert len(s) == 3
+        assert s != "III"
+        assert set(s).issubset({"I", "X"})
+        assert s.count("X") <= 2
+        
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_pauli_strings ---")
+        print(f"Generated Strings: {strings}")
+
+
+def test_obtain_skeleton_laplacian():
+    op = obtain_skeleton_laplacian(n=3, d=2)
+    assert isinstance(op, SparsePauliOp)
+    assert op.num_qubits == 3
+    assert len(op) == 3 # 1 identity + 2 paulies
+    assert op.coeffs[0] == 2.0
+    assert op.coeffs[1] == -1.0
+    assert op.coeffs[2] == -1.0
+    
+    if VERBOSE:
+        print(f"\n--- test_obtain_skeleton_laplacian ---")
+        print(f"Skeleton Laplacian:\n{op}")
+
+
+def test_obtain_random_m_local_perturbation():
+    op = obtain_random_m_local_perturbation(m=2, simplify=True)
+    assert op.num_qubits == 2
+    
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_m_local_perturbation ---")
+        print(f"M-Local Perturbation:\n{op}")
+
+
+def test_scale_m_local_perturbation():
+    import numpy as np
+    local_op = SparsePauliOp(["XY"], [1.0])
+    rng = np.random.default_rng(42)
+    scaled_left = scale_m_local_perturbation(local_op, q_global_dim=4, scaling_method=PerturbationScalingMethod.LEFT, pseudo_rng=rng)
+    assert scaled_left == SparsePauliOp(["IIXY"], [1.0])
+    
+    scaled_random = scale_m_local_perturbation(local_op, q_global_dim=4, scaling_method=PerturbationScalingMethod.RANDOM_LEFT_RIGHT, pseudo_rng=rng)
+    assert scaled_random.num_qubits == 4
+    
+    scaled_scramble = scale_m_local_perturbation(local_op, q_global_dim=4, scaling_method=PerturbationScalingMethod.SCRAMBLE, pseudo_rng=rng)
+    assert scaled_scramble.num_qubits == 4
+    
+    if VERBOSE:
+        print(f"\n--- test_scale_m_local_perturbation ---")
+        print(f"Local Op:\n{local_op}")
+        print(f"Scaled Left:\n{scaled_left}")
+        print(f"Scaled Random:\n{scaled_random}")
+        print(f"Scaled Scramble:\n{scaled_scramble}")
+
+
+def test_obtain_random_perturbed_laplacian():
+    skel = obtain_skeleton_laplacian(n=4, d=2)
+    perturbed = obtain_random_perturbed_laplacian(
+        skeleton_hamiltonian=skel,
+        num_perturbations=2,
+        max_perturbation_locality=2,
+        perturbations_scaling_method=PerturbationScalingMethod.LEFT
+    )
+    assert perturbed.num_qubits == 4
+
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_perturbed_laplacian ---")
+        print(f"Skeleton:\n{skel}")
+        print(f"Perturbed:\n{perturbed}")

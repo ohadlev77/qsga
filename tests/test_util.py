@@ -1,8 +1,18 @@
 import pytest
+
 import numpy as np
 import networkx as nx
 
-from qsga.util import obtain_random_weighted_graph
+from qsga.util import (
+    obtain_random_weighted_graph,
+    decompose_laplacian_matrix,
+    transform_laplacian_to_graph,
+    compute_weighted_density,
+    compare_hermitian_spectra
+)
+
+
+VERBOSE = True
 
 
 def test_obtain_random_weighted_graph_with_weights_bounds():
@@ -25,6 +35,12 @@ def test_obtain_random_weighted_graph_with_weights_bounds():
     for u, v, data in graph.edges(data=True):
         assert "weight" in data
         assert weights_bounds[0] <= data["weight"] <= weights_bounds[1]
+
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_weighted_graph_with_weights_bounds ---")
+        print(f"Generated graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
+        print(f"Weights bounds: {weights_bounds}")
+        print(f"Sampled edge weights: {[d['weight'] for u, v, d in graph.edges(data=True)][:5]}...")
 
 
 def test_obtain_random_weighted_graph_with_required_weighted_density():
@@ -53,6 +69,11 @@ def test_obtain_random_weighted_graph_with_required_weighted_density():
     for u, v, data in graph.edges(data=True):
         assert "weight" in data
 
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_weighted_graph_with_required_weighted_density ---")
+        print(f"Generated graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
+        print(f"Target Density: {required_weighted_density}")
+
 
 def test_obtain_random_weighted_graph_with_weights_distribution_larger():
     num_nodes = 5
@@ -73,6 +94,11 @@ def test_obtain_random_weighted_graph_with_weights_distribution_larger():
     for u, v, data in graph.edges(data=True):
         assert "weight" in data
         assert data["weight"] in weights_distribution
+
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_weighted_graph_with_weights_distribution_larger ---")
+        print(f"Weights distribution (size {len(weights_distribution)}): {weights_distribution[:5]}...")
+        print(f"Sampled edge weights: {[d['weight'] for u, v, d in graph.edges(data=True)][:5]}...")
 
 
 def test_obtain_random_weighted_graph_with_weights_distribution_slightly_smaller():
@@ -100,6 +126,11 @@ def test_obtain_random_weighted_graph_with_weights_distribution_slightly_smaller
         assert "weight" in data
         assert data["weight"] in weights_distribution
 
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_weighted_graph_with_weights_distribution_slightly_smaller ---")
+        print(f"Weights distribution (size {len(weights_distribution)}): {weights_distribution}")
+        print(f"Sampled edge weights: {[d['weight'] for u, v, d in graph.edges(data=True)]}")
+
 
 def test_obtain_random_weighted_graph_value_error():
     num_nodes = 10
@@ -122,3 +153,93 @@ def test_obtain_random_weighted_graph_value_error():
             required_weighted_density=0.5,
             weights_bounds=(0.0, 1.0)
         )
+
+    if VERBOSE:
+        print(f"\n--- test_obtain_random_weighted_graph_value_error ---")
+
+
+def test_decompose_laplacian_matrix():
+    mat = np.array([
+        [ 2.0, -1.0, -1.0],
+        [-1.0,  2.0, -1.0],
+        [-1.0, -1.0,  2.0]
+    ])
+    dec = decompose_laplacian_matrix(mat)
+    assert np.array_equal(dec.diagonal, [2.0, 2.0, 2.0])
+    assert np.array_equal(dec.D, [[2.0, 0, 0], [0, 2.0, 0], [0, 0, 2.0]])
+    assert np.array_equal(dec.A, [[0, 1.0, 1.0], [1.0, 0, 1.0], [1.0, 1.0, 0]])
+
+    if VERBOSE:
+        print(f"\n--- test_decompose_laplacian_matrix ---")
+        print(f"Original Matrix:\n{mat}")
+        print(f"Diagonal:\n{dec.diagonal}")
+        print(f"Degree Matrix D:\n{dec.D}")
+        print(f"Adjacency Matrix A:\n{dec.A}")
+
+
+def test_transform_laplacian_to_graph():
+    mat = np.array([
+        [ 1.0, -1.0],
+        [-1.0,  1.0]
+    ])
+    g = transform_laplacian_to_graph(mat)
+    assert isinstance(g, nx.Graph)
+    assert g.number_of_nodes() == 2
+    assert g.number_of_edges() == 1
+    assert g[0][1]["weight"] == 1.0
+
+    if VERBOSE:
+        print(f"\n--- test_transform_laplacian_to_graph ---")
+        print(f"Laplacian Matrix:\n{mat}")
+        print(f"Transformed Graph: {g.number_of_nodes()} nodes, {g.number_of_edges()} edges")
+
+
+def test_compute_weighted_density():
+    mat = np.array([
+        [ 0, 2.0, 0],
+        [2.0, 0, 4.0],
+        [ 0, 4.0, 0]
+    ])
+    # Possible edges = 3
+    # Total weight = 6.0
+    # Density = 6.0 / 3 = 2.0
+    assert compute_weighted_density(weighted_adjacency_matrix=mat) == 2.0
+    
+    g = nx.Graph()
+    g.add_edge(0, 1, weight=2.0)
+    g.add_edge(1, 2, weight=4.0)
+    g.add_node(2)
+    assert compute_weighted_density(graph=g) == 2.0
+    
+    with pytest.raises(ValueError):
+        compute_weighted_density()
+        
+    with pytest.raises(ValueError):
+        compute_weighted_density(graph=g, weighted_adjacency_matrix=mat)
+
+    if VERBOSE:
+        print(f"\n--- test_compute_weighted_density ---")
+        print(f"Adjacency Matrix:\n{mat}")
+        print(f"Density from Matrix: 2.0")
+        print(f"Density from Graph: 2.0")
+
+
+def test_compare_hermitian_spectra():
+    spec_a = np.array([1.0, 2.0])
+    spec_b = np.array([1.0, 2.0])
+    res = compare_hermitian_spectra(spec_a, spec_b)
+    assert res["soergel_distance"] == 0.0
+    assert res["hellinger_distance"] == 0.0
+    assert res["cosine_similarity"] == 1.0
+    
+    spec_c = np.array([10.0, 20.0])
+    res2 = compare_hermitian_spectra(spec_a, spec_c)
+    assert res2["cosine_similarity"] == 1.0
+    assert res2["soergel_distance"] > 0.0
+    assert res2["hellinger_distance"] >= 0.0
+
+    if VERBOSE:
+        print(f"\n--- test_compare_hermitian_spectra ---")
+        print(f"Spectrum A: {spec_a}")
+        print(f"Spectrum B: {spec_b} -> Distance: {res}")
+        print(f"Spectrum C: {spec_c} -> Distance: {res2}")
