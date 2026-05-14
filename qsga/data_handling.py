@@ -1,4 +1,4 @@
-"""This module is totally vibe-code. It takes care of all data saving and loading operations."""
+"""This module is mostly vibe-coded. It takes care of all data saving and loading operations."""
 
 from __future__ import annotations
 
@@ -10,26 +10,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Callable
 
-import networkx as nx
 import numpy as np
 from scipy import sparse
+
+import networkx as nx
 from networkx.readwrite import json_graph
 
-
-GRAPH_TYPES = [
-    "skeleton_graph",
-    "definite_order_perturbed_graph", 
-    "random_order_perturbed_graph",
-    "dop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbed_graph`
-    "rop_like_random_graph", # Unweighted and weighted densities should be as `random_order_perturbed_graph`
-    "rop_like_random_graph_same_weights", # TODO NEW
-]
-
-EXCLUDE_GRAPHS = ("definite_order_perturbed_graph", "dop_like_random_graph")
-
+from qsga import GRAPH_TYPES
 
 # ----------------------- utilities -----------------------
-
 
 def _jsonify_complex(z: Any) -> Any:
     # Convert complex (Python or NumPy) into {"re": float, "im": float}
@@ -145,11 +134,11 @@ def _derive_item_slug(cfg_json: Any, fallback: str) -> str:
         if isinstance(cfg_json, dict):
             parts = []
             mapping = {
-                "n_num_qubits": "n",
+                "n_num_qubits": "q",
                 "d_skeleton_regularity": "d",
                 "max_skeleton_locality": "sl",
-                "num_perturbations": "p",
-                "max_perturbation_locality": "pl",
+                "num_perturbations": "np",
+                "max_perturbation_locality": "m",
                 "seed": "s",
             }
             for key, prefix in mapping.items():
