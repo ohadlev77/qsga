@@ -1,18 +1,33 @@
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from itertools import product
+from itertools import product, cycle
 from pathlib import Path
-from typing import Iterator, Iterable, TYPE_CHECKING
+from typing import Iterator, Iterable, TYPE_CHECKING, Callable
 
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 
-from qsga.hamiltonian_generators import obtain_skeleton_laplacian, obtain_random_perturbed_laplacian
+from qsga import (
+    GRAPH_TYPES,
+    OBSOLETE_GRAPHS,
+    GRAPHS_TO_PLOT_MAP,
+    GRAPHS_COMPARISON_PAIR
+)
 from qsga.data_verifiers import is_valid_laplacian
-from qsga.util import obtain_random_weighted_graph, compute_weighted_density, transform_laplacian_to_graph
-from qsga.data_handling import save_dataset, load_dataset, _slugify, GRAPH_TYPES, EXCLUDE_GRAPHS
+from qsga.data_handling import save_dataset, load_dataset, _slugify
+from qsga.util import (
+    obtain_random_weighted_graph,
+    compute_weighted_density,
+    transform_laplacian_to_graph,
+    compare_hermitian_spectra
+)
+from qsga.hamiltonian_generators import (
+    obtain_skeleton_laplacian,
+    obtain_random_perturbed_laplacian,
+    PerturbationScalingMethod
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -60,11 +75,11 @@ class SingleExperimentConfiguration:
         """
         
         base = (
-            f"n{self.n_num_qubits}-"
+            f"q{self.n_num_qubits}-"
             f"d{self.d_skeleton_regularity}-"
             f"sl{self.max_skeleton_locality}-"
-            f"p{self.num_perturbations}-"
-            f"pl{self.max_perturbation_locality}"
+            f"np{self.num_perturbations}-"
+            f"m{self.max_perturbation_locality}"
         )
 
         if self.seed is not None:
@@ -93,7 +108,7 @@ class ExperimentConfigurations:
     n_num_qubits: list[int]
     d_skeleton_regularity: list[int]
     max_skeleton_locality: list[int]
-    num_perturbations: list[int]
+    num_perturbations: list[int | Callable[[int], int]]
     max_perturbation_locality: list[int]
 
     perturbation_weights_bounds: list[tuple[float, float] | None] | None = None
@@ -111,7 +126,29 @@ class ExperimentConfigurations:
             self.perturbation_weights_bounds or [None],
             self.seed or [None],
         ):
-            yield SingleExperimentConfiguration(*vals)
+            (
+                n_num_qubits,
+                d_skeleton_regularity,
+                max_skeleton_locality,
+                num_perturbations_val,
+                max_perturbation_locality,
+                perturbation_weights_bounds,
+                seed
+             ) = vals
+            
+            # The number of perturbations can be a function of the number of qubits
+            if callable(num_perturbations_val):
+                num_perturbations_val = num_perturbations_val(n_num_qubits)
+
+            yield SingleExperimentConfiguration(
+                n_num_qubits,
+                d_skeleton_regularity,
+                max_skeleton_locality,
+                num_perturbations_val,
+                max_perturbation_locality,
+                perturbation_weights_bounds,
+                seed
+            )
 
 
 @dataclass
@@ -156,7 +193,10 @@ class GraphData:
     """
 
     laplacian_sparse_obj: SparsePauliOp | None = None
+    num_laplacian_paulis: int | None = None
+    num_commuting_groups: int | None = None
     graph_obj: nx.Graph | None = None
+    laplacian_spectrum: NDArray[np.float64] | None = None
 
     def __post_init__(self) -> None:
         if self.laplacian_sparse_obj is not None:
@@ -167,6 +207,18 @@ class GraphData:
         if self.graph_obj is None:
             self.graph_obj: nx.Graph = transform_laplacian_to_graph(self.laplacian_sparse_obj)
         self.laplacian_dense_matrix: NDArray[np.float64] = nx.laplacian_matrix(self.graph_obj).todense()
+
+        # self.num_laplacian_paulis == -1 => A graph is given, not a Laplacian operator
+        op = self.laplacian_sparse_obj
+        if self.num_laplacian_paulis == -1 and self.laplacian_sparse_obj is None:
+            op = SparsePauliOp.from_operator(self.laplacian_dense_matrix).simplify()
+            self.num_laplacian_paulis = len(op)
+
+        if op is not None:
+            if self.num_laplacian_paulis < 10_000:
+                self.num_commuting_groups = len(op.group_commuting())
+            else:
+                self.num_commuting_groups = "TOO_MANY_PAULIS (>10k)"
         
         self.metadata: GraphMetadata[int | float] = GraphMetadata(
             num_nodes=self.graph_obj.number_of_nodes(),
@@ -176,7 +228,7 @@ class GraphData:
         )
 
 
-class LaplacianHamiltoniansGeneration:
+class LaplacianHamiltoniansWorkshop:
     """Generate and analyze Laplacian Hamiltonians with perturbations.
     
     This class orchestrates the full workflow of generating quantum graph Laplacians,
@@ -185,21 +237,21 @@ class LaplacianHamiltoniansGeneration:
     """
 
     @staticmethod
-    def from_data(data_dir_path: Path | str) -> LaplacianHamiltoniansGeneration:
+    def from_data(data_dir_path: Path | str) -> LaplacianHamiltoniansWorkshop:
         """Load experiment data and configurations from a previously saved run.
         
         Args:
             data_dir_path: Path to the directory containing saved experiment data.
             
         Returns:
-            LaplacianHamiltoniansGeneration: Restored experiment object with loaded data.
+            LaplacianHamiltoniansWorkshop: Restored experiment object with loaded data.
         """
         
         data, manifest_data, metadata = load_dataset(data_dir_path)
 
         configurations = ExperimentConfigurations(**metadata["configurations"])
 
-        obj = LaplacianHamiltoniansGeneration.__new__(LaplacianHamiltoniansGeneration)
+        obj = LaplacianHamiltoniansWorkshop.__new__(LaplacianHamiltoniansWorkshop)
         obj.data = data
         obj.configurations = configurations
         obj.manifest_data = manifest_data
@@ -215,21 +267,27 @@ class LaplacianHamiltoniansGeneration:
         """
 
         self.configurations = configurations
-        self.data = []
+        self.data: list[dict[str, GraphData]] = []
         self.metadata = {
             "configurations": asdict(configurations),
             "total_configurations": len(list(configurations)),
             "graph_types": GRAPH_TYPES
         }
 
+        # Converting functions to strings for proper JSON serialization
+        for index, element in enumerate(self.metadata["configurations"]["num_perturbations"]):
+            if callable(element):
+                self.metadata["configurations"]["num_perturbations"][index] = str(element)
+
     def perform_experiment(self) -> None:
         """Generate all Laplacian graphs and compute their properties.
         
         For each configuration, generates:
         - Skeleton Laplacian graph.
-        - Definite-order perturbed Laplacian - legacy, consider remove TODO.
-        - Random-order perturbed (ROP) Laplacian.
-        - Random graphs with matching densities.
+        - Definite-order perturbed Laplacian (`PerturbationScalingMethod.LEFT`).
+        - Random-order perturbed (ROP) Laplacian (`PerturbationScalingMethod.RANDOM_LEFT_RIGHT`).
+        - Randomly Perturbed Scrambled Laplacian (`PerturbationScalingMethod.SCRAMBLE`).
+        - Random graphs with matching densities and weights.
         """
 
         for config_index, config in enumerate(self.configurations):
@@ -241,9 +299,12 @@ class LaplacianHamiltoniansGeneration:
                 max_locality=config.max_skeleton_locality,
                 pseudo_rng=np.random.default_rng(seed=config.seed)
             )
-            skeleton_graph_data = GraphData(laplacian_sparse_obj=skeleton_laplacian)
+            skeleton_graph_data = GraphData(
+                laplacian_sparse_obj=skeleton_laplacian,
+                num_laplacian_paulis=len(skeleton_laplacian)
+            )
 
-            # perturbed Laplacians
+            # Perturbed Laplacians
             kwargs = dict(
                 skeleton_hamiltonian=skeleton_laplacian,
                 num_perturbations=config.num_perturbations,
@@ -253,17 +314,33 @@ class LaplacianHamiltoniansGeneration:
             
             definite_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
                 **kwargs,
-                random_perturbations_scaling=False,
+                perturbations_scaling_method=PerturbationScalingMethod.LEFT,
                 pseudo_rng=np.random.default_rng(seed=config.seed)
             )
-            definite_order_perturbed_graph_data = GraphData(laplacian_sparse_obj=definite_order_perturbed_laplacian)
+            definite_order_perturbed_graph_data = GraphData(
+                laplacian_sparse_obj=definite_order_perturbed_laplacian,
+                num_laplacian_paulis=len(definite_order_perturbed_laplacian)
+            )
             
             random_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
                 **kwargs,
-                random_perturbations_scaling=True,
+                perturbations_scaling_method=PerturbationScalingMethod.RANDOM_LEFT_RIGHT,
                 pseudo_rng=np.random.default_rng(seed=config.seed)
             )
-            random_order_perturbed_graph_data = GraphData(laplacian_sparse_obj=random_order_perturbed_laplacian)
+            random_order_perturbed_graph_data = GraphData(
+                laplacian_sparse_obj=random_order_perturbed_laplacian,
+                num_laplacian_paulis=len(random_order_perturbed_laplacian)
+            )
+
+            random_order_scrambled_perturbed_laplacian = obtain_random_perturbed_laplacian(
+                **kwargs,
+                perturbations_scaling_method=PerturbationScalingMethod.SCRAMBLE,
+                pseudo_rng=np.random.default_rng(seed=config.seed)
+            )
+            random_order_scrambled_perturbed_graph_data = GraphData(
+                laplacian_sparse_obj=random_order_scrambled_perturbed_laplacian,
+                num_laplacian_paulis=len(random_order_scrambled_perturbed_laplacian)
+            )
 
             config_data: dict[str, int | str | GraphData] = {
                 "config_index": config_index,
@@ -271,7 +348,39 @@ class LaplacianHamiltoniansGeneration:
                 "skeleton_graph": skeleton_graph_data,
                 "definite_order_perturbed_graph": definite_order_perturbed_graph_data,
                 "random_order_perturbed_graph": random_order_perturbed_graph_data,
+                "random_order_scrambled_perturbed_graph": random_order_scrambled_perturbed_graph_data,
             }
+
+            # Same density Erdos-Renyi graph as the scrambled perturbed graph
+            scrambled_like_random_graph = obtain_random_weighted_graph(
+                num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
+                required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
+                required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
+                seed=config.seed
+            )
+            scrambled_like_random_graph_data = GraphData(
+                graph_obj=scrambled_like_random_graph,
+                num_laplacian_paulis=-1
+            ) 
+            config_data["scrambled_like_random_graph"] = scrambled_like_random_graph_data
+
+            # Same density Erdos-Renyi graph as the scrambled perturbed graph + SAME WEIGHTS DISTRIBUTION
+            weights = np.abs(
+                np.triu(random_order_scrambled_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
+            )
+            weights = weights[weights != 0]
+            scrambled_like_random_graph_same_weights = obtain_random_weighted_graph(
+                num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
+                required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
+                required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
+                seed=config.seed,
+                weights_distribution=weights
+            )
+            scrambled_like_random_graph_same_weights_data = GraphData(
+                graph_obj=scrambled_like_random_graph_same_weights,
+                num_laplacian_paulis=-1
+            )
+            config_data["scrambled_like_random_graph_same_weights"] = scrambled_like_random_graph_same_weights_data
 
             # Same density Erdos-Renyi graph as the random order perturbed graph
             rop_like_random_graph = obtain_random_weighted_graph(
@@ -280,11 +389,13 @@ class LaplacianHamiltoniansGeneration:
                 required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
                 seed=config.seed
             )
-            rop_like_random_graph_data = GraphData(graph_obj=rop_like_random_graph)
+            rop_like_random_graph_data = GraphData(
+                graph_obj=rop_like_random_graph,
+                num_laplacian_paulis=-1
+            )
             config_data["rop_like_random_graph"] = rop_like_random_graph_data
 
             # Same density Erdos-Renyi graph as the random order perturbed graph + SAME WEIGHTS DISTRIBUTION
-            # TODO DO SOMETHING WITH THIS
             weights = np.abs(
                 np.triu(random_order_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
             )
@@ -296,7 +407,10 @@ class LaplacianHamiltoniansGeneration:
                 seed=config.seed,
                 weights_distribution=weights
             )
-            rop_like_random_graph_same_weights_data = GraphData(graph_obj=rop_like_random_graph_same_weights)
+            rop_like_random_graph_same_weights_data = GraphData(
+                graph_obj=rop_like_random_graph_same_weights,
+                num_laplacian_paulis=-1
+            )
             config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
 
             # Same density Erdos-Renyi graph as the definite order perturbed graph
@@ -306,7 +420,10 @@ class LaplacianHamiltoniansGeneration:
                 required_weighted_density=definite_order_perturbed_graph_data.metadata.weighted_density,
                 seed=config.seed
             )
-            dop_like_random_graph_data = GraphData(graph_obj=dop_like_random_graph)
+            dop_like_random_graph_data = GraphData(
+                graph_obj=dop_like_random_graph,
+                num_laplacian_paulis=-1
+            )
             config_data["dop_like_random_graph"] = dop_like_random_graph_data
 
             self.data.append(config_data)
@@ -316,15 +433,19 @@ class LaplacianHamiltoniansGeneration:
         
         Computes eigenspectra for each graph and prepares data for similarity analysis.
         """
-
-        # Compute eigenspectrums
         for config_execution_result in self.data:
+
+            comparison_spectra_pair = []
+
             for graph_type in GRAPH_TYPES:
                 graph_data: GraphData = config_execution_result[graph_type]
-                graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix) # TODO laplacian_spectrum define somewhere
+                graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix)
 
-        # Measure similarity of eigenspectrums - TODO COMPLETE
-        pass 
+                if graph_type in GRAPHS_COMPARISON_PAIR:
+                    comparison_spectra_pair.append(graph_data.laplacian_spectrum)
+
+            # Measure similarity of eigenspectrums
+            config_execution_result["spectra_comparison"] = compare_hermitian_spectra(*comparison_spectra_pair)
 
     def save_results(self, data_dir_path: str | Path) -> None:
         """Save all experiment data and metadata to disk.
@@ -345,11 +466,9 @@ class LaplacianHamiltoniansGeneration:
         plot_window_start: float = 0.0,
         plot_window_ends: float = 1.0,
         merge_plots: bool = True,
-        exclude_graphs: Iterable[str] = EXCLUDE_GRAPHS,
+        exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
     ) -> None:
         """Plot the Laplacian spectra for each configuration.
-
-        ### NOTE: THIS METHOD HAS BEEN VIBE-CODED COMPLETELY ###
 
         Args:
             plot_window_start: Start as a fraction of spectrum length (0.0-1.0).
@@ -357,29 +476,6 @@ class LaplacianHamiltoniansGeneration:
             merge_plots: If True, create a merged grid of all configurations.
             exclude_graphs: Graph types to skip in plots.
         """
-        from itertools import cycle
-
-        # --- helpers ---
-        def _get_spectrum(bundle):
-            # Works for both GraphData objects and dicts
-            if isinstance(bundle, dict):
-                return bundle.get("laplacian_spectrum")
-            return getattr(bundle, "laplacian_spectrum", None)
-
-        def _get_num_nodes(bundle):
-            # Try to infer number of nodes from Laplacian shape; else from graph
-            lap = None
-            if isinstance(bundle, dict):
-                lap = bundle.get("laplacian_obj")
-                g = bundle.get("graph_obj")
-            else:
-                lap = getattr(bundle, "laplacian_dense_matrix", None) or getattr(bundle, "laplacian_obj", None)
-                g = getattr(bundle, "graph_obj", None)
-            if lap is not None:
-                return int(np.asarray(lap).shape[0])
-            if g is not None:
-                return int(g.number_of_nodes())
-            return None
 
         # --- where to save ---
         run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
@@ -406,17 +502,8 @@ class LaplacianHamiltoniansGeneration:
         for idx, (config, config_execution_result, manifest_item) in enumerate(
             zip(configs_list, self.data, self.manifest_data["items"])
         ):
-            # pick a representative bundle to determine spectrum length
-            # prefer "skeleton_graph", else any available
-            ref_bundle_name = next((g for g in GRAPH_TYPES if g in config_execution_result), None)
-            if ref_bundle_name is None:
-                continue
-            ref_bundle = config_execution_result[ref_bundle_name]
-
-            # num_nodes and windowing
-            num_nodes = getattr(config, "num_nodes", None) or _get_num_nodes(ref_bundle) or 0
-            if num_nodes <= 0:
-                continue
+            num_nodes = config.num_nodes
+            
             window_start = max(0, min(int(plot_window_start * num_nodes), num_nodes))
             window_ends = max(window_start, min(int(plot_window_ends * num_nodes), num_nodes))
             nodes_indexes = np.arange(num_nodes)
@@ -425,14 +512,23 @@ class LaplacianHamiltoniansGeneration:
 
             # always make individual plot
             plt.figure()
+
+            ax = None
+            if merge_plots:
+                row_idx = idx // num_cols
+                col_idx = idx % num_cols
+                ax = axes[row_idx, col_idx]
+
             for graph_type in GRAPH_TYPES:
                 if graph_type in exclude_graphs:
                     continue
                 if graph_type not in config_execution_result:
                     continue
+                if graph_type not in GRAPHS_TO_PLOT_MAP:
+                    continue
 
-                bundle = config_execution_result[graph_type]
-                spec = _get_spectrum(bundle)
+                bundle: GraphData = config_execution_result[graph_type]
+                spec = bundle.laplacian_spectrum
                 if spec is None:
                     continue
 
@@ -442,60 +538,65 @@ class LaplacianHamiltoniansGeneration:
                 except Exception:
                     marker = next(marker_cycler)
 
+                graph_label_name = GRAPHS_TO_PLOT_MAP[graph_type]
+                label = (
+                    f"{graph_label_name} (#Edges = {bundle.metadata.num_edges}, "
+                    f"#Paulis = {bundle.num_laplacian_paulis}, "
+                    f"#Commuting groups = {bundle.num_commuting_groups})"
+                )
+                
                 plt.scatter(
                     nodes_indexes[window_start:window_ends],
                     np.asarray(spec)[window_start:window_ends],
                     s=scatter_size,
-                    label=graph_type,
+                    label=label,
                     marker=marker,
                 )
 
+                if ax is not None:
+                    ax.scatter(
+                        nodes_indexes[window_start:window_ends],
+                        np.asarray(spec)[window_start:window_ends],
+                        s=scatter_size,
+                        label=label,
+                        marker=marker,
+                    )
+
+            title_str = (
+                f"Config: {config}\n"
+                f"{config_execution_result['spectra_comparison']}"
+            )
+
             plt.xlabel("Eigenvalue index")
             plt.ylabel("Eigenvalue")
-            plt.legend()
+            plt.legend(
+                loc="upper left",
+                frameon=True,
+                fontsize=8,
+                markerscale=2,
+                framealpha=0.9
+            )
             plt.grid(True, linestyle="--", alpha=0.4)
-            plt.title(f"Spectrum plot for configuration: {config}")
+            plt.title(title_str, fontsize=8)
+            
             out_png = Path(run_dir, manifest_item["item_id"], "spectra_plot.png")
             out_png.parent.mkdir(parents=True, exist_ok=True)
             plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
             plt.close()
 
-            # add to merged figure
-            if merge_plots:
-                row_idx = idx // num_cols
-                col_idx = idx % num_cols
-                ax = axes[row_idx, col_idx]
-
-                for graph_type in GRAPH_TYPES:
-                    if graph_type in exclude_graphs:
-                        continue
-                    if graph_type not in config_execution_result:
-                        continue
-
-                    bundle = config_execution_result[graph_type]
-                    spec = _get_spectrum(bundle)
-                    if spec is None:
-                        continue
-
-                    try:
-                        marker = default_markers[GRAPH_TYPES.index(graph_type) % len(default_markers)]
-                    except Exception:
-                        marker = next(marker_cycler)
-
-                    ax.scatter(
-                        nodes_indexes[window_start:window_ends],
-                        np.asarray(spec)[window_start:window_ends],
-                        s=scatter_size,
-                        label=graph_type,
-                        marker=marker,
-                    )
-
+            # format merged figure
+            if ax is not None:
                 ax.set_xlabel("Eigenvalue index")
                 ax.set_ylabel("Eigenvalue")
                 ax.grid(True, linestyle="--", alpha=0.4)
-                ax.set_title(f"Config: {config}", fontsize=8)
-                # avoid duplicate legends: show once per axis (fine)
-                ax.legend(fontsize=8)
+                ax.set_title(title_str, fontsize=8)
+                ax.legend(
+                    loc="upper left",
+                    frameon=True,
+                    fontsize=6,
+                    markerscale=2,
+                    framealpha=0.9
+                )
 
         if merge_plots:
             # prune any unused axes
@@ -510,25 +611,84 @@ class LaplacianHamiltoniansGeneration:
             merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
             plt.close(merged_fig)
 
-    def plot_matrices(self, exclude_graphs: Iterable[str] = EXCLUDE_GRAPHS) -> None:
+    def plot_matrices(
+        self,
+        merge_plots: bool = True,
+        exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
+    ) -> None:
         """Create sparsity pattern visualizations of Laplacian matrices.
         
         Args:
+            merge_plots: If True, create a merged grid of all configurations per graph type.
             exclude_graphs: Graph types to skip in visualization.
         """
+        run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
+        run_dir.mkdir(parents=True, exist_ok=True)
 
-        for config_data in self.data:
+        configs_list = list(self.configurations)
+        num_configs = len(self.data)
+        
+        merged_figs = {}
+        merged_axes = {}
+        if merge_plots:
+            num_rows = int(np.ceil(np.sqrt(num_configs))) or 1
+            num_cols = int(np.ceil(num_configs / num_rows)) or 1
+            
+            for graph_name in GRAPH_TYPES:
+                if graph_name in exclude_graphs:
+                    continue
+                fig, axes = plt.subplots(num_rows, num_cols, figsize=(5 * num_cols, 4 * num_rows))
+                if num_configs == 1:
+                    axes = np.array([[axes]])
+                elif num_rows == 1:
+                    axes = axes.reshape(1, -1)
+                merged_figs[graph_name] = fig
+                merged_axes[graph_name] = axes
+
+        for idx, config_data in enumerate(self.data):
+            config = configs_list[idx]
             config_data_path = Path(
-                self.metadata["run_metadata"]["run_dir"],
+                run_dir,
                 self.manifest_data["items"][config_data["config_index"]]["item_id"]
             )
+            config_data_path.mkdir(parents=True, exist_ok=True)
 
             for graph_name in GRAPH_TYPES:
                 if graph_name in exclude_graphs:
                     continue
+                if graph_name not in config_data:
+                    continue
             
-                plt.spy(config_data[graph_name].laplacian_dense_matrix)
+                # Individual plot
+                plt.figure()
+                plt.spy(config_data[graph_name].laplacian_dense_matrix, markersize=0.1)
+                plt.title(f"{graph_name} - {config}")
                 plt.savefig(Path(config_data_path, f"{graph_name}_laplacian.png"))
+                plt.close()
+
+                # Merged plot
+                if merge_plots and graph_name in merged_axes:
+                    row_idx = idx // num_cols
+                    col_idx = idx % num_cols
+                    ax = merged_axes[graph_name][row_idx, col_idx]
+                    
+                    L = config_data[graph_name].laplacian_dense_matrix
+                    ax.spy(L, markersize=0.2)
+                    ax.set_title(f"Config: {config}, nonzero_rate = {np.count_nonzero(L) / L.size:.2f}", fontsize=8)
+
+        if merge_plots:
+            for graph_name, fig in merged_figs.items():
+                axes = merged_axes[graph_name]
+                total_axes = axes.size
+                for j in range(num_configs, total_axes):
+                    r = j // num_cols
+                    c = j % num_cols
+                    fig.delaxes(axes[r, c])
+                
+                fig.tight_layout()
+                merged_path = Path(run_dir, f"merged_{graph_name}_matrices.png")
+                fig.savefig(merged_path, dpi=300, bbox_inches="tight")
+                plt.close(fig)
 
     def run_all(self, filepath: str) -> None:
         """Execute the complete experiment pipeline.
@@ -545,35 +705,25 @@ class LaplacianHamiltoniansGeneration:
 
 
 if __name__ == "__main__":
+
     ec = ExperimentConfigurations(
-        n_num_qubits=[12],
-        d_skeleton_regularity=[21],
-        max_skeleton_locality=[5],
-        num_perturbations=[12**2, 2*(12**2)],
-        max_perturbation_locality=[6, 9],
-        perturbation_weights_bounds=[(2, 6)],
+        n_num_qubits=[9],
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[3],
+        num_perturbations=[
+            lambda x: int(np.sqrt(x)),
+            lambda x: x,
+            lambda x: 2 * x,
+            lambda x: x**2,
+            lambda x: 2**x,
+            # lambda x: x**3,
+            # lambda x: x**4,
+            # lambda x: x**5,
+        ],
+        max_perturbation_locality=[4], # m
+        perturbation_weights_bounds=[(0.5, 5)],
         seed=[32],
     )
 
-    # ec = ExperimentConfigurations(
-    #     n_num_qubits=[6],
-    #     d_skeleton_regularity=[7],
-    #     max_skeleton_locality=[3],
-    #     num_perturbations=[9],
-    #     max_perturbation_locality=[3],
-    #     perturbation_weights_bounds=[(2, 6)],
-    #     seed=[32],
-    # )
-
-    experiment = LaplacianHamiltoniansGeneration(configurations=ec)
-    experiment.perform_experiment()
-    experiment.analyze_results()
-    experiment.save_results("experiments_data_archive")
-    
-    experiment.plot_results()
-    experiment.plot_matrices()
-
-    # rexp = LaplacianHamiltoniansGeneration.from_data(
-    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive/2025-11-05_14-49-35"
-    # )
-    # rexp.plot_results(plot_window_ends=10)
+    experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    experiment.run_all("experiments_data_archive")
