@@ -2,5 +2,6 @@
 drafts/
 plans/
 __pycache__/
-ARCHIVE_BIG_FILES__experiments_data_archive/
 qsga.egg-info/
+ARCHIVE_BIG_FILES__experiments_data_archive/
+experiments_data_archive/
