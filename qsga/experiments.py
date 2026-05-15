@@ -218,7 +218,7 @@ class GraphData:
             if self.num_laplacian_paulis < 10_000:
                 self.num_commuting_groups = len(op.group_commuting())
             else:
-                self.num_commuting_groups = "TOO_MANY_PAULIS (>10k)"
+                self.num_commuting_groups = "N/A"
         
         self.metadata: GraphMetadata[int | float] = GraphMetadata(
             num_nodes=self.graph_obj.number_of_nodes(),
@@ -540,9 +540,9 @@ class LaplacianHamiltoniansWorkshop:
 
                 graph_label_name = GRAPHS_TO_PLOT_MAP[graph_type]
                 label = (
-                    f"{graph_label_name} (#Edges = {bundle.metadata.num_edges}, "
-                    f"#Paulis = {bundle.num_laplacian_paulis}, "
-                    f"#Commuting groups = {bundle.num_commuting_groups})"
+                    f"{graph_label_name} ($|E| = $ {bundle.metadata.num_edges}, "
+                    f"$|P| = ${bundle.num_laplacian_paulis}, "
+                    f"$|P_G| = ${bundle.num_commuting_groups})"
                 )
                 
                 plt.scatter(
@@ -593,7 +593,7 @@ class LaplacianHamiltoniansWorkshop:
                 ax.legend(
                     loc="upper left",
                     frameon=True,
-                    fontsize=6,
+                    fontsize=7,
                     markerscale=2,
                     framealpha=0.9
                 )
@@ -637,7 +637,7 @@ class LaplacianHamiltoniansWorkshop:
             for graph_name in GRAPH_TYPES:
                 if graph_name in exclude_graphs:
                     continue
-                fig, axes = plt.subplots(num_rows, num_cols, figsize=(5 * num_cols, 4 * num_rows))
+                fig, axes = plt.subplots(num_rows, num_cols, figsize=(6 * num_cols, 4 * num_rows))
                 if num_configs == 1:
                     axes = np.array([[axes]])
                 elif num_rows == 1:
@@ -706,24 +706,30 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    ec = ExperimentConfigurations(
-        n_num_qubits=[9],
-        d_skeleton_regularity=[3],
-        max_skeleton_locality=[3],
-        num_perturbations=[
-            lambda x: int(np.sqrt(x)),
-            lambda x: x,
-            lambda x: 2 * x,
-            lambda x: x**2,
-            lambda x: 2**x,
-            # lambda x: x**3,
-            # lambda x: x**4,
-            # lambda x: x**5,
-        ],
-        max_perturbation_locality=[4], # m
-        perturbation_weights_bounds=[(0.5, 5)],
-        seed=[32],
-    )
+    # ec = ExperimentConfigurations(
+    #     n_num_qubits=[8],
+    #     d_skeleton_regularity=[3],
+    #     max_skeleton_locality=[3],
+    #     num_perturbations=[
+    #         lambda x: int(np.sqrt(x)),
+    #         lambda x: x,
+    #         lambda x: 2*x,
+    #         lambda x: 3*x,
+    #         lambda x: x**2,
+    #         lambda x: 2**x,
+    #         # lambda x: x**3,
+    #         # lambda x: x**4,
+    #         # lambda x: x**5,
+    #     ],
+    #     max_perturbation_locality=[4], # m
+    #     perturbation_weights_bounds=[(0.5, 5)],
+    #     seed=[32],
+    # )
 
-    experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    experiment.run_all("experiments_data_archive")
+    # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    # experiment.run_all("experiments_data_archive")
+
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path("experiments_data_archive", "2026-05-15_15-20-37"))
+    experiment.plot_results()
+    experiment.plot_matrices()
+    # experiment.plot_matrices()
