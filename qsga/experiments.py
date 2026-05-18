@@ -252,6 +252,33 @@ class LaplacianHamiltoniansWorkshop:
         configurations = ExperimentConfigurations(**metadata["configurations"])
 
         obj = LaplacianHamiltoniansWorkshop.__new__(LaplacianHamiltoniansWorkshop)
+        
+        for config_result in data:
+            if "configuration" in config_result and isinstance(config_result["configuration"], dict):
+                # num_nodes was calculated in post_init, so we remove it before recreating if it was saved
+                cfg_dict = config_result["configuration"].copy()
+                cfg_dict.pop("num_nodes", None)
+                config_result["configuration"] = SingleExperimentConfiguration(**cfg_dict)
+
+            for gtype in GRAPH_TYPES:
+                if gtype in config_result and isinstance(config_result[gtype], dict):
+                    b_dict = config_result[gtype]
+                    gd = GraphData(
+                        graph_obj=b_dict.get("graph_obj"),
+                        laplacian_spectrum=b_dict.get("laplacian_spectrum")
+                    )
+                    
+                    if "laplacian_obj" in b_dict:
+                        gd.laplacian_dense_matrix = b_dict["laplacian_obj"]
+
+                    if "laplacian_pauli_repr" in b_dict:
+                        gd.num_laplacian_paulis = len(b_dict["laplacian_pauli_repr"])
+                    else:
+                        gd.num_laplacian_paulis = "N/A"
+                        
+                    gd.num_commuting_groups = "N/A"
+                    config_result[gtype] = gd
+
         obj.data = data
         obj.configurations = configurations
         obj.manifest_data = manifest_data
@@ -439,6 +466,8 @@ class LaplacianHamiltoniansWorkshop:
 
             for graph_type in GRAPH_TYPES:
                 graph_data: GraphData = config_execution_result[graph_type]
+
+                # Compute Laplacian spectrum
                 graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix)
 
                 if graph_type in GRAPHS_COMPARISON_PAIR:
@@ -467,6 +496,7 @@ class LaplacianHamiltoniansWorkshop:
         plot_window_ends: float = 1.0,
         merge_plots: bool = True,
         exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
+        show_only: bool = False,
     ) -> None:
         """Plot the Laplacian spectra for each configuration.
 
@@ -475,6 +505,7 @@ class LaplacianHamiltoniansWorkshop:
             plot_window_ends: End as a fraction of spectrum length (0.0-1.0).
             merge_plots: If True, create a merged grid of all configurations.
             exclude_graphs: Graph types to skip in plots.
+            show_only: If True, show the plots instead of saving them to disk.
         """
 
         # --- where to save ---
@@ -487,7 +518,7 @@ class LaplacianHamiltoniansWorkshop:
         dpi = 300
 
         # --- figure grid if merge_plots ---
-        configs_list = list(self.configurations)  # materialize once (preserves order of self.data)
+        configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
         num_configs = len(self.data)  # safer than len(configs_list) if partially saved/loaded
         if merge_plots:
             num_rows = int(np.ceil(np.sqrt(num_configs))) or 1
@@ -579,10 +610,11 @@ class LaplacianHamiltoniansWorkshop:
             plt.grid(True, linestyle="--", alpha=0.4)
             plt.title(title_str, fontsize=8)
             
-            out_png = Path(run_dir, manifest_item["item_id"], "spectra_plot.png")
-            out_png.parent.mkdir(parents=True, exist_ok=True)
-            plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
-            plt.close()
+            if not show_only:
+                out_png = Path(run_dir, manifest_item["item_id"], "spectra_plot.png")
+                out_png.parent.mkdir(parents=True, exist_ok=True)
+                plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
+                plt.close()
 
             # format merged figure
             if ax is not None:
@@ -607,25 +639,31 @@ class LaplacianHamiltoniansWorkshop:
                 merged_fig.delaxes(axes[r, c])
 
             merged_fig.tight_layout()
-            merged_path = Path(run_dir, "merged_spectra_plot.png")
-            merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
-            plt.close(merged_fig)
+            if not show_only:
+                merged_path = Path(run_dir, "merged_spectra_plot.png")
+                merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
+                plt.close(merged_fig)
+
+        if show_only:
+            plt.show()
 
     def plot_matrices(
         self,
         merge_plots: bool = True,
         exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
+        show_only: bool = False,
     ) -> None:
         """Create sparsity pattern visualizations of Laplacian matrices.
         
         Args:
             merge_plots: If True, create a merged grid of all configurations per graph type.
             exclude_graphs: Graph types to skip in visualization.
+            show_only: If True, show the plots instead of saving them to disk.
         """
         run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
         run_dir.mkdir(parents=True, exist_ok=True)
 
-        configs_list = list(self.configurations)
+        configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
         num_configs = len(self.data)
         
         merged_figs = {}
@@ -663,8 +701,9 @@ class LaplacianHamiltoniansWorkshop:
                 plt.figure()
                 plt.spy(config_data[graph_name].laplacian_dense_matrix, markersize=0.1)
                 plt.title(f"{graph_name} - {config}")
-                plt.savefig(Path(config_data_path, f"{graph_name}_laplacian.png"))
-                plt.close()
+                if not show_only:
+                    plt.savefig(Path(config_data_path, f"{graph_name}_laplacian.png"))
+                    plt.close()
 
                 # Merged plot
                 if merge_plots and graph_name in merged_axes:
@@ -686,9 +725,13 @@ class LaplacianHamiltoniansWorkshop:
                     fig.delaxes(axes[r, c])
                 
                 fig.tight_layout()
-                merged_path = Path(run_dir, f"merged_{graph_name}_matrices.png")
-                fig.savefig(merged_path, dpi=300, bbox_inches="tight")
-                plt.close(fig)
+                if not show_only:
+                    merged_path = Path(run_dir, f"merged_{graph_name}_matrices.png")
+                    fig.savefig(merged_path, dpi=300, bbox_inches="tight")
+                    plt.close(fig)
+
+        if show_only:
+            plt.show()
 
     def run_all(self, filepath: str) -> None:
         """Execute the complete experiment pipeline.
@@ -729,7 +772,10 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive")
 
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path("experiments_data_archive", "2026-05-15_15-20-37"))
-    experiment.plot_results()
-    experiment.plot_matrices()
-    # experiment.plot_matrices()
+    data_dir_path = Path(
+        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    )
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-15_15-20-37"))
+    experiment.analyze_results()
+    experiment.plot_results()#show_only=True)
+    experiment.plot_matrices()#show_only=True)
