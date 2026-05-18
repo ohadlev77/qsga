@@ -733,7 +733,134 @@ class LaplacianHamiltoniansWorkshop:
         if show_only:
             plt.show()
 
-    def run_all(self, filepath: str) -> None:
+    def draw_graphs(
+        self,
+        merge_plots: bool = True,
+        exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
+        show_only: bool = False,
+    ) -> None:
+        """Draw the graph structures using NetworkX.
+        
+        Args:
+            merge_plots: If True, create a merged grid of all configurations per graph type.
+            exclude_graphs: Graph types to skip in visualization.
+            show_only: If True, show the plots instead of saving them to disk.
+        """
+        run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
+        num_configs = len(self.data)
+        
+        merged_figs = {}
+        merged_axes = {}
+        if merge_plots:
+            num_rows = int(np.ceil(np.sqrt(num_configs))) or 1
+            num_cols = int(np.ceil(num_configs / num_rows)) or 1
+            
+            for graph_name in GRAPH_TYPES:
+                if graph_name in exclude_graphs:
+                    continue
+                fig, axes = plt.subplots(num_rows, num_cols, figsize=(7 * num_cols, 5 * num_rows))
+                if num_configs == 1:
+                    axes = np.array([[axes]])
+                elif num_rows == 1:
+                    axes = axes.reshape(1, -1)
+                merged_figs[graph_name] = fig
+                merged_axes[graph_name] = axes
+
+        for idx, config_data in enumerate(self.data):
+            config = configs_list[idx]
+            config_data_path = Path(
+                run_dir,
+                self.manifest_data["items"][config_data["config_index"]]["item_id"]
+            )
+            config_data_path.mkdir(parents=True, exist_ok=True)
+
+            for graph_name in GRAPH_TYPES:
+                if graph_name in exclude_graphs:
+                    continue
+                if graph_name not in config_data:
+                    continue
+                
+                graph_obj = config_data[graph_name].graph_obj
+                if graph_obj is None:
+                    continue
+
+                # Prepare layout and aesthetic features
+                pos = nx.spring_layout(graph_obj, seed=42)
+                degrees = [deg for node, deg in graph_obj.degree(weight="weight")]
+                num_edges = graph_obj.number_of_edges()
+                edge_alpha = max(0.05, min(0.5, 3.0 / np.sqrt(max(num_edges, 1))))
+                
+                # Individual plot
+                plt.figure(figsize=(8, 6))
+                ax = plt.gca()
+                nx.draw_networkx_nodes(
+                    graph_obj, pos, ax=ax,
+                    node_size=25,
+                    node_color=degrees,
+                    cmap=plt.cm.plasma,
+                    alpha=0.9,
+                    edgecolors="white",
+                    linewidths=0.5
+                )
+                nx.draw_networkx_edges(
+                    graph_obj, pos, ax=ax,
+                    alpha=edge_alpha,
+                    edge_color="gray",
+                    width=0.8
+                )
+                ax.axis("off")
+                plt.title(f"{graph_name} - {config}")
+                
+                if not show_only:
+                    plt.savefig(Path(config_data_path, f"{graph_name}_graph.png"), dpi=300, bbox_inches="tight")
+                    plt.close()
+
+                # Merged plot
+                if merge_plots and graph_name in merged_axes:
+                    row_idx = idx // num_cols
+                    col_idx = idx % num_cols
+                    ax = merged_axes[graph_name][row_idx, col_idx]
+                    
+                    nx.draw_networkx_nodes(
+                        graph_obj, pos, ax=ax,
+                        node_size=15,
+                        node_color=degrees,
+                        cmap=plt.cm.plasma,
+                        alpha=0.9,
+                        edgecolors="white",
+                        linewidths=0.3
+                    )
+                    nx.draw_networkx_edges(
+                        graph_obj, pos, ax=ax,
+                        alpha=edge_alpha,
+                        edge_color="gray",
+                        width=0.5
+                    )
+                    ax.axis("off")
+                    ax.set_title(f"Config: {config}", fontsize=9)
+
+        if merge_plots:
+            for graph_name, fig in merged_figs.items():
+                axes = merged_axes[graph_name]
+                total_axes = axes.size
+                for j in range(num_configs, total_axes):
+                    r = j // num_cols
+                    c = j % num_cols
+                    fig.delaxes(axes[r, c])
+                
+                fig.tight_layout()
+                if not show_only:
+                    merged_path = Path(run_dir, f"merged_{graph_name}_graphs.png")
+                    fig.savefig(merged_path, dpi=300, bbox_inches="tight")
+                    plt.close(fig)
+
+        if show_only:
+            plt.show()
+
+    def run_all(self, filepath: str, draw_graphs: bool = False) -> None:
         """Execute the complete experiment pipeline.
         
         Args:
@@ -746,36 +873,38 @@ class LaplacianHamiltoniansWorkshop:
         self.plot_results()
         self.plot_matrices()
 
+        if draw_graphs:
+            self.draw_graphs()
+
 
 if __name__ == "__main__":
 
-    # ec = ExperimentConfigurations(
-    #     n_num_qubits=[8],
-    #     d_skeleton_regularity=[3],
-    #     max_skeleton_locality=[3],
-    #     num_perturbations=[
-    #         lambda x: int(np.sqrt(x)),
-    #         lambda x: x,
-    #         lambda x: 2*x,
-    #         lambda x: 3*x,
-    #         lambda x: x**2,
-    #         lambda x: 2**x,
-    #         # lambda x: x**3,
-    #         # lambda x: x**4,
-    #         # lambda x: x**5,
-    #     ],
-    #     max_perturbation_locality=[4], # m
-    #     perturbation_weights_bounds=[(0.5, 5)],
-    #     seed=[32],
-    # )
-
-    # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    # experiment.run_all("experiments_data_archive")
-
-    data_dir_path = Path(
-        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    ec = ExperimentConfigurations(
+        n_num_qubits=[10], # q
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[3],
+        num_perturbations=[
+            # 0,
+            # lambda x: int(np.sqrt(x)),
+            # lambda x: x,
+            lambda x: x**2,
+            # lambda x: 2**x,
+            # lambda x: x**3,
+            lambda x: 2 * x**3,
+        ],
+        max_perturbation_locality=[3, 4, 5, 6, 7], # m
+        perturbation_weights_bounds=[(0.5, 5)],
+        seed=[32],
     )
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-15_15-20-37"))
-    experiment.analyze_results()
-    experiment.plot_results()#show_only=True)
-    experiment.plot_matrices()#show_only=True)
+
+    experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    experiment.run_all("experiments_data_archive", draw_graphs=False)
+
+    # data_dir_path = Path(
+    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    # )
+    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-18_09-35-31"))
+    # experiment.analyze_results()
+    # experiment.plot_results()#show_only=True)
+    # # experiment.plot_matrices()#show_only=True)
+    # # experiment.draw_graphs()#show_only=True)
