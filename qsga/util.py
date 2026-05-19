@@ -1,4 +1,6 @@
 from __future__ import annotations
+import functools
+import time
 from typing import NamedTuple, TYPE_CHECKING
 
 import numpy as np
@@ -8,6 +10,28 @@ from qiskit.quantum_info import SparsePauliOp
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+
+def time_it(func=None, *, last: bool = False):
+    """Decorator that measures and prints the execution time of a function."""
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+            result = f(*args, **kwargs)
+            elapsed_time = time.perf_counter() - start_time
+            print(f"[{f.__qualname__}] execution time: {elapsed_time:.6f} seconds")
+
+            if last:
+                print()
+
+            return result
+        return wrapper
+
+    if func is None:
+        return decorator
+    return decorator(func)
+
 
 
 class LaplacianDecomposition(NamedTuple):
@@ -129,6 +153,7 @@ def compute_weighted_density(
     return weighted_density
 
 
+@time_it
 def obtain_random_weighted_graph(
     num_nodes: int,
     required_unweighted_density: float,
@@ -212,10 +237,10 @@ def compare_hermitian_spectra(
     
     # 2. Hellinger Distance [cite: 403-405]
     # Normalized L2 analog for PDFs. Bounded [0, 1].
-    p_pdf = p / np.sum(p)
-    q_pdf = q / np.sum(q)
-    bc = np.sum(np.sqrt(p_pdf * q_pdf)) # Bhattacharyya Coefficient [cite: 396]
-    hellinger = np.sqrt(1 - bc)
+    # p_pdf = p / np.sum(p)
+    # q_pdf = q / np.sum(q)
+    # bc = np.sum(np.sqrt(p_pdf * q_pdf)) # Bhattacharyya Coefficient [cite: 396]
+    # hellinger = np.sqrt(1 - bc)
     
     # 3. Cosine Similarity [cite: 60-61]
     # Measures trend alignment. Bounded [0, 1] for non-negative vectors.
@@ -223,6 +248,6 @@ def compare_hermitian_spectra(
     
     return {
         "soergel_distance": float(f"{soergel:.3f}"),
-        "hellinger_distance": float(f"{hellinger:.3f}"),
+        # "hellinger_distance": float(f"{hellinger:.3f}"),
         "cosine_similarity": float(f"{cos_sim:.3f}"),
     }
