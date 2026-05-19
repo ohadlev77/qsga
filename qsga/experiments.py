@@ -1,13 +1,11 @@
 from __future__ import annotations
-import time
 from dataclasses import dataclass, asdict
 from itertools import product, cycle
 from pathlib import Path
-from typing import Iterator, Iterable, TYPE_CHECKING, Callable
+from typing import Iterator, Iterable, TYPE_CHECKING, Callable, Any
 
 import numpy as np
 import networkx as nx
-from rich.pretty import pprint
 from qiskit.quantum_info import SparsePauliOp
 
 import matplotlib.pyplot as plt
@@ -20,7 +18,14 @@ from qsga import (
     GRAPHS_COMPARISON_PAIR
 )
 from qsga.data_verifiers import is_valid_laplacian
-from qsga.data_handling import save_dataset, load_dataset, _slugify
+from qsga.data_handling import (
+    IncrementalSaver,
+    save_dataset,
+    load_dataset,
+    _slugify,
+    _config_to_jsonable,
+    _derive_item_slug
+)
 from qsga.util import (
     obtain_random_weighted_graph,
     compute_weighted_density,
@@ -339,7 +344,7 @@ class LaplacianHamiltoniansWorkshop:
             if callable(element):
                 self.metadata["configurations"]["num_perturbations"][index] = str(element)
 
-    def perform_experiment(self) -> None:
+    def perform_experiment(self, save_dir: str | Path | None = None) -> None:
         """Generate all Laplacian graphs and compute their properties.
         
         For each configuration, generates:
@@ -351,143 +356,182 @@ class LaplacianHamiltoniansWorkshop:
         """
         reset_log_capture()
 
-        for config_index, config in enumerate(self.configurations):
+        saver = None
+        if save_dir is not None:
+            saver = IncrementalSaver(
+                out_dir=save_dir,
+                experiment_metadata=self.metadata,
+            )
+            self.data_dir_path = save_dir
+            self.metadata = saver.experiment_metadata
+            configure_file_logging(saver.run_dir / "run.log")
 
-            # Skeleton Laplacian
-            skeleton_laplacian = obtain_skeleton_laplacian(
-                n=config.n_num_qubits,
-                d=config.d_skeleton_regularity,
-                max_locality=config.max_skeleton_locality,
-                pseudo_rng=np.random.default_rng(seed=config.seed)
-            )
-            skeleton_graph_data = GraphData(
-                laplacian_sparse_obj=skeleton_laplacian,
-                num_laplacian_paulis=len(skeleton_laplacian)
-            )
+        try:
+            for config_index, config in enumerate(self.configurations):
 
-            # Perturbed Laplacians
-            kwargs = dict(
-                skeleton_hamiltonian=skeleton_laplacian,
-                num_perturbations=config.num_perturbations,
-                max_perturbation_locality=config.max_perturbation_locality,
-                random_perturbation_weights_bounds=config.perturbation_weights_bounds,
-            )
-            
-            definite_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
-                **kwargs,
-                perturbations_scaling_method=PerturbationScalingMethod.LEFT,
-                pseudo_rng=np.random.default_rng(seed=config.seed)
-            )
-            definite_order_perturbed_graph_data = GraphData(
-                laplacian_sparse_obj=definite_order_perturbed_laplacian,
-                num_laplacian_paulis=len(definite_order_perturbed_laplacian)
-            )
-            
-            random_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
-                **kwargs,
-                perturbations_scaling_method=PerturbationScalingMethod.RANDOM_LEFT_RIGHT,
-                pseudo_rng=np.random.default_rng(seed=config.seed)
-            )
-            random_order_perturbed_graph_data = GraphData(
-                laplacian_sparse_obj=random_order_perturbed_laplacian,
-                num_laplacian_paulis=len(random_order_perturbed_laplacian)
-            )
+                # Skeleton Laplacian
+                skeleton_laplacian = obtain_skeleton_laplacian(
+                    n=config.n_num_qubits,
+                    d=config.d_skeleton_regularity,
+                    max_locality=config.max_skeleton_locality,
+                    pseudo_rng=np.random.default_rng(seed=config.seed)
+                )
+                skeleton_graph_data = GraphData(
+                    laplacian_sparse_obj=skeleton_laplacian,
+                    num_laplacian_paulis=len(skeleton_laplacian)
+                )
 
-            random_order_scrambled_perturbed_laplacian = obtain_random_perturbed_laplacian(
-                **kwargs,
-                perturbations_scaling_method=PerturbationScalingMethod.SCRAMBLE,
-                pseudo_rng=np.random.default_rng(seed=config.seed)
-            )
-            random_order_scrambled_perturbed_graph_data = GraphData(
-                laplacian_sparse_obj=random_order_scrambled_perturbed_laplacian,
-                num_laplacian_paulis=len(random_order_scrambled_perturbed_laplacian)
-            )
+                # Perturbed Laplacians
+                kwargs = dict(
+                    skeleton_hamiltonian=skeleton_laplacian,
+                    num_perturbations=config.num_perturbations,
+                    max_perturbation_locality=config.max_perturbation_locality,
+                    random_perturbation_weights_bounds=config.perturbation_weights_bounds,
+                )
+                
+                definite_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
+                    **kwargs,
+                    perturbations_scaling_method=PerturbationScalingMethod.LEFT,
+                    pseudo_rng=np.random.default_rng(seed=config.seed)
+                )
+                definite_order_perturbed_graph_data = GraphData(
+                    laplacian_sparse_obj=definite_order_perturbed_laplacian,
+                    num_laplacian_paulis=len(definite_order_perturbed_laplacian)
+                )
+                
+                random_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
+                    **kwargs,
+                    perturbations_scaling_method=PerturbationScalingMethod.RANDOM_LEFT_RIGHT,
+                    pseudo_rng=np.random.default_rng(seed=config.seed)
+                )
+                random_order_perturbed_graph_data = GraphData(
+                    laplacian_sparse_obj=random_order_perturbed_laplacian,
+                    num_laplacian_paulis=len(random_order_perturbed_laplacian)
+                )
 
-            config_data: dict[str, int | str | GraphData] = {
-                "config_index": config_index,
-                "configuration": config,
-                "skeleton_graph": skeleton_graph_data,
-                "definite_order_perturbed_graph": definite_order_perturbed_graph_data,
-                "random_order_perturbed_graph": random_order_perturbed_graph_data,
-                "random_order_scrambled_perturbed_graph": random_order_scrambled_perturbed_graph_data,
-            }
+                random_order_scrambled_perturbed_laplacian = obtain_random_perturbed_laplacian(
+                    **kwargs,
+                    perturbations_scaling_method=PerturbationScalingMethod.SCRAMBLE,
+                    pseudo_rng=np.random.default_rng(seed=config.seed)
+                )
+                random_order_scrambled_perturbed_graph_data = GraphData(
+                    laplacian_sparse_obj=random_order_scrambled_perturbed_laplacian,
+                    num_laplacian_paulis=len(random_order_scrambled_perturbed_laplacian)
+                )
 
-            # Same density Erdos-Renyi graph as the scrambled perturbed graph
-            scrambled_like_random_graph = obtain_random_weighted_graph(
-                num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
-                seed=config.seed
-            )
-            scrambled_like_random_graph_data = GraphData(
-                graph_obj=scrambled_like_random_graph,
-                num_laplacian_paulis=-1
-            ) 
-            config_data["scrambled_like_random_graph"] = scrambled_like_random_graph_data
+                config_data: dict[str, int | str | GraphData] = {
+                    "config_index": config_index,
+                    "configuration": config,
+                    "skeleton_graph": skeleton_graph_data,
+                    "definite_order_perturbed_graph": definite_order_perturbed_graph_data,
+                    "random_order_perturbed_graph": random_order_perturbed_graph_data,
+                    "random_order_scrambled_perturbed_graph": random_order_scrambled_perturbed_graph_data,
+                }
 
-            # Same density Erdos-Renyi graph as the scrambled perturbed graph + SAME WEIGHTS DISTRIBUTION
-            weights = np.abs(
-                np.triu(random_order_scrambled_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
-            )
-            weights = weights[weights != 0]
-            scrambled_like_random_graph_same_weights = obtain_random_weighted_graph(
-                num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
-                seed=config.seed,
-                weights_distribution=weights
-            )
-            scrambled_like_random_graph_same_weights_data = GraphData(
-                graph_obj=scrambled_like_random_graph_same_weights,
-                num_laplacian_paulis=-1
-            )
-            config_data["scrambled_like_random_graph_same_weights"] = scrambled_like_random_graph_same_weights_data
+                # Same density Erdos-Renyi graph as the scrambled perturbed graph
+                scrambled_like_random_graph = obtain_random_weighted_graph(
+                    num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
+                    required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
+                    required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
+                    seed=config.seed
+                )
+                scrambled_like_random_graph_data = GraphData(
+                    graph_obj=scrambled_like_random_graph,
+                    num_laplacian_paulis=-1
+                ) 
+                config_data["scrambled_like_random_graph"] = scrambled_like_random_graph_data
 
-            # Same density Erdos-Renyi graph as the random order perturbed graph
-            rop_like_random_graph = obtain_random_weighted_graph(
-                num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
-                seed=config.seed
-            )
-            rop_like_random_graph_data = GraphData(
-                graph_obj=rop_like_random_graph,
-                num_laplacian_paulis=-1
-            )
-            config_data["rop_like_random_graph"] = rop_like_random_graph_data
+                # Same density Erdos-Renyi graph as the scrambled perturbed graph + SAME WEIGHTS DISTRIBUTION
+                weights = np.abs(
+                    np.triu(random_order_scrambled_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
+                )
+                weights = weights[weights != 0]
+                scrambled_like_random_graph_same_weights = obtain_random_weighted_graph(
+                    num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
+                    required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
+                    required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
+                    seed=config.seed,
+                    weights_distribution=weights
+                )
+                scrambled_like_random_graph_same_weights_data = GraphData(
+                    graph_obj=scrambled_like_random_graph_same_weights,
+                    num_laplacian_paulis=-1
+                )
+                config_data["scrambled_like_random_graph_same_weights"] = scrambled_like_random_graph_same_weights_data
 
-            # Same density Erdos-Renyi graph as the random order perturbed graph + SAME WEIGHTS DISTRIBUTION
-            weights = np.abs(
-                np.triu(random_order_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
-            )
-            weights = weights[weights != 0]
-            rop_like_random_graph_same_weights = obtain_random_weighted_graph(
-                num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
-                required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
-                required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
-                seed=config.seed,
-                weights_distribution=weights
-            )
-            rop_like_random_graph_same_weights_data = GraphData(
-                graph_obj=rop_like_random_graph_same_weights,
-                num_laplacian_paulis=-1
-            )
-            config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
+                # Same density Erdos-Renyi graph as the random order perturbed graph
+                rop_like_random_graph = obtain_random_weighted_graph(
+                    num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
+                    required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
+                    required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
+                    seed=config.seed
+                )
+                rop_like_random_graph_data = GraphData(
+                    graph_obj=rop_like_random_graph,
+                    num_laplacian_paulis=-1
+                )
+                config_data["rop_like_random_graph"] = rop_like_random_graph_data
 
-            # Same density Erdos-Renyi graph as the definite order perturbed graph
-            dop_like_random_graph = obtain_random_weighted_graph(
-                num_nodes=definite_order_perturbed_graph_data.metadata.num_nodes,
-                required_unweighted_density=definite_order_perturbed_graph_data.metadata.unweighted_density,
-                required_weighted_density=definite_order_perturbed_graph_data.metadata.weighted_density,
-                seed=config.seed
-            )
-            dop_like_random_graph_data = GraphData(
-                graph_obj=dop_like_random_graph,
-                num_laplacian_paulis=-1
-            )
-            config_data["dop_like_random_graph"] = dop_like_random_graph_data
+                # Same density Erdos-Renyi graph as the random order perturbed graph + SAME WEIGHTS DISTRIBUTION
+                weights = np.abs(
+                    np.triu(random_order_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
+                )
+                weights = weights[weights != 0]
+                rop_like_random_graph_same_weights = obtain_random_weighted_graph(
+                    num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
+                    required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
+                    required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
+                    seed=config.seed,
+                    weights_distribution=weights
+                )
+                rop_like_random_graph_same_weights_data = GraphData(
+                    graph_obj=rop_like_random_graph_same_weights,
+                    num_laplacian_paulis=-1
+                )
+                config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
 
-            self.data.append(config_data)
+                # Same density Erdos-Renyi graph as the definite order perturbed graph
+                dop_like_random_graph = obtain_random_weighted_graph(
+                    num_nodes=definite_order_perturbed_graph_data.metadata.num_nodes,
+                    required_unweighted_density=definite_order_perturbed_graph_data.metadata.unweighted_density,
+                    required_weighted_density=definite_order_perturbed_graph_data.metadata.weighted_density,
+                    seed=config.seed
+                )
+                dop_like_random_graph_data = GraphData(
+                    graph_obj=dop_like_random_graph,
+                    num_laplacian_paulis=-1
+                )
+                config_data["dop_like_random_graph"] = dop_like_random_graph_data
+
+                # Analyze configuration on-the-fly
+                self._analyze_single_configuration(config_data)
+
+                self.data.append(config_data)
+
+                if saver is not None:
+                    saver.save_item(config_index, config_data)
+                    self.manifest_data = {"items": saver.manifest_items}
+
+        except Exception as e:
+            logger.exception("An error occurred during the experiment execution loop.")
+            raise e
+
+    def _analyze_single_configuration(self, config_execution_result: dict[str, Any]) -> None:
+        """Compute eigenspectra and compare them for a single configuration."""
+        comparison_spectra_pair = []
+
+        for graph_type in GRAPH_TYPES:
+            graph_data: GraphData = config_execution_result[graph_type]
+
+            # Compute Laplacian spectrum if not already present
+            if graph_data.laplacian_spectrum is None:
+                graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix)
+
+            if graph_type in GRAPHS_COMPARISON_PAIR:
+                comparison_spectra_pair.append(graph_data.laplacian_spectrum)
+
+        # Measure similarity of eigenspectrums
+        config_execution_result["spectra_comparison"] = compare_hermitian_spectra(*comparison_spectra_pair)
 
     def analyze_results(self) -> None:
         """Analyze the spectral properties of all generated graphs.
@@ -495,20 +539,9 @@ class LaplacianHamiltoniansWorkshop:
         Computes eigenspectra for each graph and prepares data for similarity analysis.
         """
         for config_execution_result in self.data:
-
-            comparison_spectra_pair = []
-
-            for graph_type in GRAPH_TYPES:
-                graph_data: GraphData = config_execution_result[graph_type]
-
-                # Compute Laplacian spectrum
-                graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix)
-
-                if graph_type in GRAPHS_COMPARISON_PAIR:
-                    comparison_spectra_pair.append(graph_data.laplacian_spectrum)
-
-            # Measure similarity of eigenspectrums
-            config_execution_result["spectra_comparison"] = compare_hermitian_spectra(*comparison_spectra_pair)
+            if "spectra_comparison" in config_execution_result:
+                continue
+            self._analyze_single_configuration(config_execution_result)
 
     def save_results(self, data_dir_path: str | Path) -> None:
         """Save all experiment data and metadata to disk.
@@ -688,6 +721,18 @@ class LaplacianHamiltoniansWorkshop:
             exclude_graphs: Graph types to skip in plots.
             show_only: If True, show the plots instead of saving them to disk.
         """
+        if not hasattr(self, "manifest_data") or not self.manifest_data:            
+            items = []
+            for i, res in enumerate(self.data):
+                cfg_json = _config_to_jsonable(res["configuration"])
+                item_id = f"{i:04d}-{_derive_item_slug(cfg_json, fallback=f'item-{i}')}"
+                items.append({
+                    "item_idx": i,
+                    "item_id": item_id,
+                    "config_index": res.get("config_index", i),
+                    "configuration": cfg_json
+                })
+            self.manifest_data = {"items": items}
 
         # --- where to save ---
         run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
@@ -841,6 +886,19 @@ class LaplacianHamiltoniansWorkshop:
             exclude_graphs: Graph types to skip in visualization.
             show_only: If True, show the plots instead of saving them to disk.
         """
+        if not hasattr(self, "manifest_data") or not self.manifest_data:
+            items = []
+            for i, res in enumerate(self.data):
+                cfg_json = _config_to_jsonable(res["configuration"])
+                item_id = f"{i:04d}-{_derive_item_slug(cfg_json, fallback=f'item-{i}')}"
+                items.append({
+                    "item_idx": i,
+                    "item_id": item_id,
+                    "config_index": res.get("config_index", i),
+                    "configuration": cfg_json
+                })
+            self.manifest_data = {"items": items}
+
         run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -931,6 +989,19 @@ class LaplacianHamiltoniansWorkshop:
             exclude_graphs: Graph types to skip in visualization.
             show_only: If True, show the plots instead of saving them to disk.
         """
+        if not hasattr(self, "manifest_data") or not self.manifest_data:
+            items = []
+            for i, res in enumerate(self.data):
+                cfg_json = _config_to_jsonable(res["configuration"])
+                item_id = f"{i:04d}-{_derive_item_slug(cfg_json, fallback=f'item-{i}')}"
+                items.append({
+                    "item_idx": i,
+                    "item_id": item_id,
+                    "config_index": res.get("config_index", i),
+                    "configuration": cfg_json
+                })
+            self.manifest_data = {"items": items}
+
         run_dir = Path(self.metadata.get("run_metadata", {}).get("run_dir", "."))
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1224,10 +1295,21 @@ class LaplacianHamiltoniansWorkshop:
             filepath: Path where results will be saved.
             figures_orientation: Orientation of the figures (horizontal/vertical).
         """
+        try:
+            self.perform_experiment(save_dir=filepath)
+        except Exception as e:
+            if self.data:
+                logger.info(f"Experiment pipeline encountered an error, but attempting to generate plots for the {len(self.data)} successfully completed configurations.")
+                try:
+                    self.plot_results(orientation=figures_orientation)
+                    self.plot_matrices(orientation=figures_orientation)
+                    self.plot_soergel_distance()
+                    if draw_graphs:
+                        self.draw_graphs(orientation=figures_orientation)
+                except Exception as plot_err:
+                    logger.error(f"Failed to generate plots for the partial run: {plot_err}")
+            raise e
 
-        self.perform_experiment()
-        self.analyze_results()
-        self.save_results(filepath)
         self.plot_results(orientation=figures_orientation)
         self.plot_matrices(orientation=figures_orientation)
         self.plot_soergel_distance()
@@ -1275,7 +1357,7 @@ if __name__ == "__main__":
     # )
 
     ec = ExperimentConfigurations(
-        n_num_qubits=[8, 9, 10, 11, 12, 13, 14, 15], # q
+        n_num_qubits=[8, 9, 10, 11, 12, 13, 14], # q
         d_skeleton_regularity=[3],
         max_skeleton_locality=[3],
         num_perturbations=[

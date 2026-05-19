@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import csv
 import json
 import platform
@@ -119,7 +120,6 @@ def _config_to_jsonable(cfg: Any) -> Any:
 
 
 def _slugify(s: str, max_len: int = 48) -> str:
-    import re
     s = s.lower()
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
     return (s or "item")[:max_len]
@@ -184,57 +184,69 @@ def _load_sparse_matrix_to_dense(path: Path) -> np.ndarray:
 # ----------------------- main API -----------------------
 
 
-def save_dataset(
-    data: Iterable[dict[str, Any]],
-    out_dir: str | Path,
-    *,
-    run_name: str | None = None,
-    run_notes: str | None = None,
-    item_namer: Callable[[int, dict[str, Any]], str] | None = None,
-    experiment_metadata: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+class IncrementalSaver:
+    """Helper class to save experiment configuration results incrementally.
+
+    Initializes the run directory, creates initial experiment metadata and manifest files,
+    and exposes a method to save a single configuration item and update the manifest on the fly.
     """
-    Save dataset and metadata to a timestamped run directory.
 
-    The experiment metadata (e.g., ExperimentConfigurations) is always written
-    to `experiment_metadata.json` under a key `"configurations"`.
-    """
-    base_out_dir = Path(out_dir)
-    base_out_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        out_dir: str | Path,
+        *,
+        run_name: str | None = None,
+        run_notes: str | None = None,
+        item_namer: Callable[[int, dict[str, Any]], str] | None = None,
+        experiment_metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.base_out_dir = Path(out_dir)
+        self.base_out_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_suffix = f"_{_slugify(run_name)}" if run_name else ""
-    run_dir = base_out_dir / f"{timestamp}{run_suffix}"
-    run_dir.mkdir(parents=True, exist_ok=True)
+        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        run_suffix = f"_{_slugify(run_name)}" if run_name else ""
+        self.run_dir = self.base_out_dir / f"{self.timestamp}{run_suffix}"
+        self.run_dir.mkdir(parents=True, exist_ok=True)
 
-    run_metadata = {
-        "created_at": _now_iso(),
-        "python": platform.python_version(),
-        "platform": platform.platform(),
-        "libraries": {
-            "numpy": np.__version__,
-            "networkx": nx.__version__,
-        },
-        "run_name": run_name,
-        "run_notes": run_notes,
-        "run_dir": str(run_dir),
-    }
-    experiment_metadata["run_metadata"] = run_metadata
+        self.item_namer = item_namer
+        if experiment_metadata is None:
+            self.experiment_metadata = {}
+        else:
+            self.experiment_metadata = experiment_metadata
 
-    (run_dir / "experiment_metadata.json").write_text(
-        json.dumps(experiment_metadata, indent=4, ensure_ascii=False)
-    )
-    # ----------------------------------
+        self.run_metadata = {
+            "created_at": _now_iso(),
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "libraries": {
+                "numpy": np.__version__,
+                "networkx": nx.__version__,
+            },
+            "run_name": run_name,
+            "run_notes": run_notes,
+            "run_dir": str(self.run_dir),
+        }
+        self.experiment_metadata["run_metadata"] = self.run_metadata
 
-    manifest_items: list[dict[str, Any]] = []
+        (self.run_dir / "experiment_metadata.json").write_text(
+            json.dumps(self.experiment_metadata, indent=4, ensure_ascii=False)
+        )
 
-    data = list(data)
-    for idx, rec in enumerate(data):
+        self.manifest_items: list[dict[str, Any]] = []
+        self._write_manifest()
+
+    def _write_manifest(self) -> None:
+        manifest = {"items": self.manifest_items}
+        (self.run_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=4, ensure_ascii=False)
+        )
+
+    def save_item(self, idx: int, rec: dict[str, Any]) -> dict[str, Any]:
         cfg_json = _config_to_jsonable(rec.get("configuration"))
-        item_id = (item_namer(idx, rec)
-                   if item_namer is not None
+        item_id = (self.item_namer(idx, rec)
+                   if self.item_namer is not None
                    else f"{idx:04d}-{_derive_item_slug(cfg_json, fallback=f'item-{idx}')}")
-        item_dir = run_dir / item_id
+        item_dir = self.run_dir / item_id
         item_dir.mkdir(exist_ok=True)
 
         # Save per-item metadata
@@ -243,7 +255,6 @@ def save_dataset(
             "item_id": item_id,
             "created_at": _now_iso(),
             "config_index": rec.get("config_index", idx),
-            # "num_nodes": int(rec.get("num_nodes")),
             "configuration": cfg_json,
         }
         (item_dir / "metadata.json").write_text(json.dumps(item_meta, indent=4, ensure_ascii=False))
@@ -261,7 +272,7 @@ def save_dataset(
                 raise ValueError(f"{name}: graph_obj is missing; ensure GraphData.graph_obj is set.")
             g_path = item_dir / f"{name}.graph.json"
             _save_graph(g, g_path)
-            entry["graph_json"] = str(g_path.relative_to(run_dir))
+            entry["graph_json"] = str(g_path.relative_to(self.run_dir))
 
             # --- laplacian_obj (dense) → saved sparsely on disk ---
             L = None
@@ -272,7 +283,7 @@ def save_dataset(
 
             L_path = item_dir / f"{name}.laplacian.npz"
             _save_sparse_matrix(L, L_path)
-            entry["laplacian_npz"] = str(L_path.relative_to(run_dir))
+            entry["laplacian_npz"] = str(L_path.relative_to(self.run_dir))
 
             # --- spectrum (optional) → kept out of manifest; written to spectra.csv below ---
             spec = bundle.get("laplacian_spectrum") if isinstance(bundle, dict) else getattr(bundle, "laplacian_spectrum", None)
@@ -293,12 +304,13 @@ def save_dataset(
             "item_idx": idx,
             "item_id": item_id,
             "config_index": rec.get("config_index", idx),
-            # "num_nodes": int(rec.get("num_nodes")),
             "configuration": cfg_json,
         }
         for b in GRAPH_TYPES:
             item_entry[b] = handle_bundle(b)
-        manifest_items.append(item_entry)
+        
+        self.manifest_items.append(item_entry)
+        self._write_manifest()
 
         # Write per-item spectra.csv
         spectra_csv = item_dir / "spectra.csv"
@@ -313,11 +325,34 @@ def save_dataset(
                     row.append(float(vals[k]) if (vals is not None and k < len(vals)) else "")
                 w.writerow(row)
 
-    # Manifest
-    manifest = {"items": manifest_items} # TODO `items are redundant
-    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=4, ensure_ascii=False))
+        return item_entry
 
-    return manifest
+
+def save_dataset(
+    data: Iterable[dict[str, Any]],
+    out_dir: str | Path,
+    *,
+    run_name: str | None = None,
+    run_notes: str | None = None,
+    item_namer: Callable[[int, dict[str, Any]], str] | None = None,
+    experiment_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Save dataset and metadata to a timestamped run directory.
+
+    The experiment metadata (e.g., ExperimentConfigurations) is always written
+    to `experiment_metadata.json` under a key `"configurations"`.
+    """
+    saver = IncrementalSaver(
+        out_dir=out_dir,
+        run_name=run_name,
+        run_notes=run_notes,
+        item_namer=item_namer,
+        experiment_metadata=experiment_metadata,
+    )
+    for idx, rec in enumerate(data):
+        saver.save_item(idx, rec)
+    return {"items": saver.manifest_items}
 
 
 def load_dataset(in_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:

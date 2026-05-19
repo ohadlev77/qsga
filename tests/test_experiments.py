@@ -1,7 +1,12 @@
+from unittest.mock import patch
+
+import pytest
 import numpy as np
 import networkx as nx
 from qiskit.quantum_info import SparsePauliOp
 
+from qsga.data_handling import load_dataset
+from qsga.hamiltonian_generators import obtain_random_perturbed_laplacian
 from qsga.experiments import (
     SingleExperimentConfiguration,
     ExperimentConfigurations,
@@ -204,3 +209,48 @@ def test_logging(tmp_path):
         print(f"Successfully verified run.log creation and content: {log_file}")
         print("Log sample:")
         print("\n".join(log_content.splitlines()[:5]))
+
+
+def test_partial_run_recovery(tmp_path):
+    ec = ExperimentConfigurations(
+        n_num_qubits=[3],
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[2],
+        num_perturbations=[1, 2],
+        max_perturbation_locality=[2],
+        seed=[42]
+    )
+    
+    workshop = LaplacianHamiltoniansWorkshop(configurations=ec)
+    
+    original_obtain = obtain_random_perturbed_laplacian
+    call_count = 0
+    
+    def side_effect(*args, **kwargs):
+        nonlocal call_count
+        if call_count >= 3:
+            raise ValueError("Simulated error in configuration processing")
+        call_count += 1
+        return original_obtain(*args, **kwargs)
+        
+    with patch("qsga.experiments.obtain_random_perturbed_laplacian", side_effect=side_effect):
+        with pytest.raises(ValueError, match="Simulated error in configuration processing"):
+            workshop.run_all(filepath=tmp_path)
+            
+    # Check that the first configuration (idx=0) was saved successfully
+    subdirs = list(tmp_path.iterdir())
+    assert len(subdirs) == 1
+    run_dir = subdirs[0]
+    
+    assert (run_dir / "manifest.json").exists()
+    assert (run_dir / "experiment_metadata.json").exists()
+    
+    # Load the partially saved dataset using load_dataset
+    data, manifest, exp_meta = load_dataset(run_dir)
+    assert len(data) == 1
+    assert data[0]["config_index"] == 0
+    
+    # Verify that plots were generated for the partial run
+    assert (run_dir / "merged_spectra_plot.png").exists()
+    assert (run_dir / "merged_skeleton_graph_matrices.png").exists()
+    assert (run_dir / "soergel_distance_vs_locality.png").exists()
