@@ -169,3 +169,38 @@ def test_plot_soergel_distance(tmp_path):
     if VERBOSE:
         print("\n--- test_plot_soergel_distance ---")
         print(f"Successfully generated Soergel distance plot at: {plot_file}")
+
+
+def test_logging(tmp_path):
+    from pathlib import Path
+    
+    ec = ExperimentConfigurations(
+        n_num_qubits=[3],
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[2],
+        num_perturbations=[1],
+        max_perturbation_locality=[2],
+        seed=[42]
+    )
+    workshop = LaplacianHamiltoniansWorkshop(configurations=ec)
+    
+    # Run and save results
+    workshop.perform_experiment()
+    workshop.analyze_results()
+    workshop.save_results(tmp_path)
+    
+    # Check that run.log was created
+    run_dir = Path(workshop.metadata["run_metadata"]["run_dir"])
+    log_file = run_dir / "run.log"
+    assert log_file.exists()
+    
+    log_content = log_file.read_text()
+    assert len(log_content) > 0
+    # The log should contain validation success messages and execution times
+    assert "is_valid_laplacian" in log_content or "execution time" in log_content or "GraphData" in log_content
+    
+    if VERBOSE:
+        print("\n--- test_logging ---")
+        print(f"Successfully verified run.log creation and content: {log_file}")
+        print("Log sample:")
+        print("\n".join(log_content.splitlines()[:5]))

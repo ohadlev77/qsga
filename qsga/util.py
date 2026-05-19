@@ -8,22 +8,24 @@ import networkx as nx
 from scipy.spatial import distance
 from qiskit.quantum_info import SparsePauliOp
 
+from qsga.logging_setup import logger
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
 def time_it(func=None, *, last: bool = False):
-    """Decorator that measures and prints the execution time of a function."""
+    """Decorator that measures and logs the execution time of a function."""
     def decorator(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             start_time = time.perf_counter()
             result = f(*args, **kwargs)
             elapsed_time = time.perf_counter() - start_time
-            print(f"[{f.__qualname__}] execution time: {elapsed_time:.6f} seconds")
+            logger.info(f"[{f.__qualname__}] execution time: {elapsed_time:.6f} seconds")
 
             if last:
-                print()
+                logger.info("")
 
             return result
         return wrapper

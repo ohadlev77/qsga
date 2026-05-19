@@ -5,6 +5,7 @@ import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 from qsga.util import decompose_laplacian_matrix, time_it
+from qsga.logging_setup import logger
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -27,7 +28,7 @@ def is_valid_laplacian(
 ) -> bool:
     """Verify that `matrix` is a valid weighted/unweighted Laplacian matrix."""
 
-    action = print
+    action = logger.warning
     if throw_exception:
         action = throw_laplacian_validation_exception
         
@@ -63,7 +64,7 @@ def is_valid_laplacian(
             action("[Unweighted Laplacian check] Some non-diagonal entry is not -1 or 0")
             return False
     
-    print(
+    logger.info(
         f"The {matrix.shape}-shaped matrix is a valid ({'weighted' if is_weigthed else 'unweighted'}) Laplacian matrix"
     )
     return True

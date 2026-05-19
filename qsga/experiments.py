@@ -33,6 +33,7 @@ from qsga.hamiltonian_generators import (
     obtain_random_perturbed_laplacian,
     PerturbationScalingMethod
 )
+from qsga.logging_setup import logger, configure_file_logging, reset_log_capture
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -238,7 +239,7 @@ class GraphData:
                 if self.num_laplacian_paulis < 10_000:
                     self.num_commuting_groups = len(op.group_commuting())
 
-        pprint(self.__str__())
+        logger.info(self.__str__())
 
     def __str__(self) -> str:
         """
@@ -348,6 +349,7 @@ class LaplacianHamiltoniansWorkshop:
         - Randomly Perturbed Scrambled Laplacian (`PerturbationScalingMethod.SCRAMBLE`).
         - Random graphs with matching densities and weights.
         """
+        reset_log_capture()
 
         for config_index, config in enumerate(self.configurations):
 
@@ -521,6 +523,9 @@ class LaplacianHamiltoniansWorkshop:
             self.data_dir_path,
             experiment_metadata=self.metadata,
         )
+
+        run_dir = Path(self.metadata["run_metadata"]["run_dir"])
+        configure_file_logging(run_dir / "run.log")
 
 
     def _create_merged_figure(self, configs_list, base_figsize, scanned_params_order=None, orientation="horizontal"):
@@ -1056,7 +1061,7 @@ class LaplacianHamiltoniansWorkshop:
         """
         # Ensure we have data and it has been analyzed
         if not self.data:
-            print("No data available to plot Soergel distance. Run perform_experiment() first.")
+            logger.warning("No data available to plot Soergel distance. Run perform_experiment() first.")
             return
 
         points = []
@@ -1092,7 +1097,7 @@ class LaplacianHamiltoniansWorkshop:
             })
 
         if not points:
-            print("No Soergel distance data found in experiment results.")
+            logger.warning("No Soergel distance data found in experiment results.")
             return
 
         # Identify which fields actually vary to keep the legend neat
@@ -1202,7 +1207,7 @@ class LaplacianHamiltoniansWorkshop:
         if not show_only:
             out_png = run_dir / "soergel_distance_vs_locality.png"
             plt.savefig(out_png, dpi=300, bbox_inches="tight")
-            print(f"Saved Soergel distance plot to: {out_png}")
+            logger.info(f"Saved Soergel distance plot to: {out_png}")
             plt.close()
         else:
             plt.show()
@@ -1233,25 +1238,25 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    for q in range(11, 14):
-        ec = ExperimentConfigurations(
-            n_num_qubits=[q], # q
-            d_skeleton_regularity=[3],
-            max_skeleton_locality=[3],
-            num_perturbations=[
-                # 0,
-                # lambda x: int(np.sqrt(x)),
-                lambda x: x**2,
-                lambda x: 2**x,
-                lambda x: 2 * 2**x
-            ],
-            max_perturbation_locality=list(range(1, q + 1)), # m
-            perturbation_weights_bounds=[(0.5, 5)],
-            seed=[32],
-        )
+    # for q in range(11, 14):
+    #     ec = ExperimentConfigurations(
+    #         n_num_qubits=[q], # q
+    #         d_skeleton_regularity=[3],
+    #         max_skeleton_locality=[3],
+    #         num_perturbations=[
+    #             # 0,
+    #             # lambda x: int(np.sqrt(x)),
+    #             lambda x: x**2,
+    #             lambda x: 2**x,
+    #             lambda x: 2 * 2**x
+    #         ],
+    #         max_perturbation_locality=list(range(1, q + 1)), # m
+    #         perturbation_weights_bounds=[(0.5, 5)],
+    #         seed=[32],
+    #     )
 
-        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-        experiment.run_all("experiments_data_archive", draw_graphs=False)
+    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1269,21 +1274,24 @@ if __name__ == "__main__":
     #     seed=[32],
     # )
 
-    # ec = ExperimentConfigurations(
-    #     n_num_qubits=[8, 9, 10, 11, 12, 13, 14, 15], # q
-    #     d_skeleton_regularity=[3],
-    #     max_skeleton_locality=[3],
-    #     num_perturbations=[
-    #         # 0,
-    #         # lambda x: int(np.sqrt(x)),
-    #         # lambda x: x,
-    #         lambda x: x**2,
-    #         # lambda x: 2**x,
-    #     ],
-    #     max_perturbation_locality=[4], # m
-    #     perturbation_weights_bounds=[(0.5, 5)],
-    #     seed=[32],
-    # )
+    ec = ExperimentConfigurations(
+        n_num_qubits=[8, 9, 10, 11, 12, 13, 14, 15], # q
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[3],
+        num_perturbations=[
+            # 0,
+            # lambda x: int(np.sqrt(x)),
+            # lambda x: x,
+            lambda x: x**2,
+            # lambda x: 2**x,
+        ],
+        max_perturbation_locality=[4], # m
+        perturbation_weights_bounds=[(0.5, 5)],
+        seed=[32],
+    )
+
+    experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # data_dir_path = Path(
     #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
