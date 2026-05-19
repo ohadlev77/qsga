@@ -38,7 +38,7 @@ from qsga.hamiltonian_generators import (
     obtain_random_perturbed_laplacian,
     PerturbationScalingMethod
 )
-from qsga.logging_setup import logger, configure_file_logging, reset_log_capture
+from qsga.logging_setup import logger, configure_file_logging, reset_log_capture, write_timing_report
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -517,13 +517,21 @@ class LaplacianHamiltoniansWorkshop:
         except Exception as e:
             logger.exception("An error occurred during the experiment execution loop.")
             raise e
+        finally:
+            if saver is not None:
+                write_timing_report(saver.run_dir / "timing_report.txt")
 
     @time_it(last=True)
     def _analyze_single_configuration(self, config_execution_result: dict[str, Any]) -> None:
         """Compute eigenspectra and compare them for a single configuration."""
         comparison_spectra_pair = []
 
+        graphs_needing_spectrum = set(GRAPHS_COMPARISON_PAIR) | set(GRAPHS_TO_PLOT_MAP.keys())
+
         for graph_type in GRAPH_TYPES:
+            if graph_type not in graphs_needing_spectrum:
+                continue
+
             graph_data: GraphData = config_execution_result[graph_type]
 
             # Compute Laplacian spectrum if not already present
@@ -568,6 +576,7 @@ class LaplacianHamiltoniansWorkshop:
 
         run_dir = Path(self.metadata["run_metadata"]["run_dir"])
         configure_file_logging(run_dir / "run.log")
+        write_timing_report(run_dir / "timing_report.txt")
 
 
     def _get_scanned_params_from_config(self) -> list[str]:
@@ -1344,36 +1353,36 @@ class LaplacianHamiltoniansWorkshop:
                 except Exception as plot_err:
                     logger.error(f"Failed to generate plots for the partial run: {plot_err}")
             raise e
+        else:
+            self.plot_results(orientation=figures_orientation)
+            self.plot_matrices(orientation=figures_orientation)
+            self.plot_soergel_distance()
 
-        self.plot_results(orientation=figures_orientation)
-        self.plot_matrices(orientation=figures_orientation)
-        self.plot_soergel_distance()
-
-        if draw_graphs:
-            self.draw_graphs(orientation=figures_orientation)
+            if draw_graphs:
+                self.draw_graphs(orientation=figures_orientation)
 
 
 if __name__ == "__main__":
 
-    # for q in range(11, 14):
-    #     ec = ExperimentConfigurations(
-    #         n_num_qubits=[q], # q
-    #         d_skeleton_regularity=[3],
-    #         max_skeleton_locality=[3],
-    #         num_perturbations=[
-    #             # 0,
-    #             # lambda x: int(np.sqrt(x)),
-    #             lambda x: x**2,
-    #             lambda x: 2**x,
-    #             lambda x: 2 * 2**x
-    #         ],
-    #         max_perturbation_locality=list(range(1, q + 1)), # m
-    #         perturbation_weights_bounds=[(0.5, 5)],
-    #         seed=[32],
-    #     )
+    for q in range(11, 14):
+        ec = ExperimentConfigurations(
+            n_num_qubits=[q], # q
+            d_skeleton_regularity=[3],
+            max_skeleton_locality=[3],
+            num_perturbations=[
+                # 0,
+                # lambda x: int(np.sqrt(x)),
+                lambda x: x**2,
+                lambda x: 2**x,
+                lambda x: 2 * 2**x
+            ],
+            max_perturbation_locality=list(range(1, q + 1)), # m
+            perturbation_weights_bounds=[(0.5, 5)],
+            seed=[32],
+        )
 
-    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
+        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+        experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1392,7 +1401,7 @@ if __name__ == "__main__":
     # )
 
     # ec = ExperimentConfigurations(
-    #     n_num_qubits=[8, 9, 10, 11, 12, 13, 14], # q
+    #     n_num_qubits=[12], # q
     #     d_skeleton_regularity=[3],
     #     max_skeleton_locality=[3],
     #     num_perturbations=[
@@ -1410,12 +1419,12 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
-    data_dir_path = Path(
-        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
-    )
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-19_12-21-40"))
-    experiment.analyze_results()
-    experiment.plot_results(orientation="vertical")#show_only=True)
-    experiment.plot_matrices()#show_only=True)
-    experiment.plot_soergel_distance()
+    # data_dir_path = Path(
+    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    # )
+    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-19_12-21-40"))
+    # experiment.analyze_results()
+    # experiment.plot_results(orientation="vertical")#show_only=True)
+    # experiment.plot_matrices()#show_only=True)
+    # experiment.plot_soergel_distance()
     # experiment.draw_graphs()#show_only=True)
