@@ -92,6 +92,7 @@ def test_graph_data_from_sparse_op():
     assert data.laplacian_dense_matrix.shape == (2, 2)
     assert np.allclose(data.laplacian_dense_matrix, [[1, -1], [-1, 1]])
     assert isinstance(data.graph_obj, nx.Graph)
+    assert str(data) == "GraphData(nodes=2, edges=1, density=1.0000, weighted_density=1.0000, paulis=2, commuting_groups=1)"
 
     if VERBOSE:
         print(f"\n--- test_graph_data_from_sparse_op ---")
@@ -107,6 +108,7 @@ def test_graph_data_from_graph():
     assert data.metadata.num_nodes == 2
     assert data.num_laplacian_paulis == 2
     assert np.allclose(data.laplacian_dense_matrix, [[1, -1], [-1, 1]])
+    assert str(data) == "GraphData(nodes=2, edges=1, density=1.0000, weighted_density=1.0000, paulis=2, commuting_groups=1)"
 
     if VERBOSE:
         print(f"\n--- test_graph_data_from_graph ---")
@@ -133,3 +135,37 @@ def test_laplacian_hamiltonians_workshop_init():
     if VERBOSE:
         print(f"\n--- test_laplacian_hamiltonians_workshop_init ---")
         print(f"Workshop metadata: {workshop.metadata}")
+
+
+def test_plot_soergel_distance(tmp_path):
+    from pathlib import Path
+    
+    # Define a tiny experiment configuration with valid parameter values
+    ec = ExperimentConfigurations(
+        n_num_qubits=[3],
+        d_skeleton_regularity=[3],
+        max_skeleton_locality=[2],
+        num_perturbations=[1, 2],
+        max_perturbation_locality=[2, 3],
+        seed=[42]
+    )
+    
+    workshop = LaplacianHamiltoniansWorkshop(configurations=ec)
+    
+    # Run the experiment and analysis
+    workshop.perform_experiment()
+    workshop.analyze_results()
+    
+    # Set the run directory in metadata to use tmp_path
+    workshop.metadata["run_metadata"] = {"run_dir": str(tmp_path)}
+    
+    # Plot Soergel distance and verify it saves the plot
+    workshop.plot_soergel_distance(show_only=False)
+    
+    plot_file = tmp_path / "soergel_distance_vs_locality.png"
+    assert plot_file.exists()
+    assert plot_file.stat().st_size > 0
+    
+    if VERBOSE:
+        print("\n--- test_plot_soergel_distance ---")
+        print(f"Successfully generated Soergel distance plot at: {plot_file}")
