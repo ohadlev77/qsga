@@ -504,11 +504,13 @@ class LaplacianHamiltoniansWorkshop:
                 config_data["dop_like_random_graph"] = dop_like_random_graph_data
 
                 # Analyze configuration on-the-fly
+                logger.info(f"[config {config_index}] Starting spectral analysis ({config.num_nodes} nodes, {len(GRAPH_TYPES)} graph types)...")
                 self._analyze_single_configuration(config_data)
 
                 self.data.append(config_data)
 
                 if saver is not None:
+                    logger.info(f"[config {config_index}] Saving data to disk...")
                     saver.save_item(config_index, config_data)
                     self.manifest_data = {"items": saver.manifest_items}
 
@@ -516,6 +518,7 @@ class LaplacianHamiltoniansWorkshop:
             logger.exception("An error occurred during the experiment execution loop.")
             raise e
 
+    @time_it(last=True)
     def _analyze_single_configuration(self, config_execution_result: dict[str, Any]) -> None:
         """Compute eigenspectra and compare them for a single configuration."""
         comparison_spectra_pair = []
@@ -525,13 +528,19 @@ class LaplacianHamiltoniansWorkshop:
 
             # Compute Laplacian spectrum if not already present
             if graph_data.laplacian_spectrum is None:
-                graph_data.laplacian_spectrum = np.linalg.eigvalsh(graph_data.laplacian_dense_matrix)
+                n = graph_data.laplacian_dense_matrix.shape[0]
+                logger.info(f"[eigvalsh] {graph_type}: computing spectrum ({n}x{n} matrix)...")
+                graph_data.laplacian_spectrum = time_it(np.linalg.eigvalsh)(graph_data.laplacian_dense_matrix)
+            else:
+                logger.info(f"[eigvalsh] {graph_type}: spectrum already present, skipping")
 
             if graph_type in GRAPHS_COMPARISON_PAIR:
                 comparison_spectra_pair.append(graph_data.laplacian_spectrum)
 
         # Measure similarity of eigenspectrums
-        config_execution_result["spectra_comparison"] = compare_hermitian_spectra(*comparison_spectra_pair)
+        logger.info("Computing spectra comparison (Soergel distance)...")
+        config_execution_result["spectra_comparison"] = time_it(compare_hermitian_spectra)(*comparison_spectra_pair)
+        logger.info(f"Spectra comparison result: {config_execution_result['spectra_comparison']}")
 
     def analyze_results(self) -> None:
         """Analyze the spectral properties of all generated graphs.
@@ -1320,25 +1329,25 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    # for q in range(11, 14):
-    #     ec = ExperimentConfigurations(
-    #         n_num_qubits=[q], # q
-    #         d_skeleton_regularity=[3],
-    #         max_skeleton_locality=[3],
-    #         num_perturbations=[
-    #             # 0,
-    #             # lambda x: int(np.sqrt(x)),
-    #             lambda x: x**2,
-    #             lambda x: 2**x,
-    #             lambda x: 2 * 2**x
-    #         ],
-    #         max_perturbation_locality=list(range(1, q + 1)), # m
-    #         perturbation_weights_bounds=[(0.5, 5)],
-    #         seed=[32],
-    #     )
+    for q in range(11, 14):
+        ec = ExperimentConfigurations(
+            n_num_qubits=[q], # q
+            d_skeleton_regularity=[3],
+            max_skeleton_locality=[3],
+            num_perturbations=[
+                # 0,
+                # lambda x: int(np.sqrt(x)),
+                lambda x: x**2,
+                lambda x: 2**x,
+                lambda x: 2 * 2**x
+            ],
+            max_perturbation_locality=list(range(1, q + 1)), # m
+            perturbation_weights_bounds=[(0.5, 5)],
+            seed=[32],
+        )
 
-    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
+        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+        experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1356,24 +1365,24 @@ if __name__ == "__main__":
     #     seed=[32],
     # )
 
-    ec = ExperimentConfigurations(
-        n_num_qubits=[8, 9, 10, 11, 12, 13, 14], # q
-        d_skeleton_regularity=[3],
-        max_skeleton_locality=[3],
-        num_perturbations=[
-            # 0,
-            # lambda x: int(np.sqrt(x)),
-            # lambda x: x,
-            lambda x: x**2,
-            # lambda x: 2**x,
-        ],
-        max_perturbation_locality=[4], # m
-        perturbation_weights_bounds=[(0.5, 5)],
-        seed=[32],
-    )
+    # ec = ExperimentConfigurations(
+    #     n_num_qubits=[8, 9, 10, 11, 12, 13, 14], # q
+    #     d_skeleton_regularity=[3],
+    #     max_skeleton_locality=[3],
+    #     num_perturbations=[
+    #         # 0,
+    #         # lambda x: int(np.sqrt(x)),
+    #         # lambda x: x,
+    #         lambda x: x**2,
+    #         # lambda x: 2**x,
+    #     ],
+    #     max_perturbation_locality=[4], # m
+    #     perturbation_weights_bounds=[(0.5, 5)],
+    #     seed=[32],
+    # )
 
-    experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    experiment.run_all("experiments_data_archive", draw_graphs=False)
+    # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # data_dir_path = Path(
     #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"

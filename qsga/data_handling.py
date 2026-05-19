@@ -18,6 +18,8 @@ import networkx as nx
 from networkx.readwrite import json_graph
 
 from qsga import GRAPH_TYPES
+from qsga.logging_setup import logger
+from qsga.util import time_it
 
 # ----------------------- utilities -----------------------
 
@@ -152,6 +154,7 @@ def _derive_item_slug(cfg_json: Any, fallback: str) -> str:
         return _slugify(fallback)
 
 
+@time_it
 def _save_graph(g: nx.Graph, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json_graph.node_link_data(g)
@@ -172,6 +175,7 @@ def _load_array(path: Path) -> np.ndarray:
     return np.load(path, allow_pickle=False)
 
 
+@time_it
 def _save_sparse_matrix(arr: np.ndarray | sparse.spmatrix, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     sparse.save_npz(path, sparse.csr_matrix(arr))
@@ -241,6 +245,7 @@ class IncrementalSaver:
             json.dumps(manifest, indent=4, ensure_ascii=False)
         )
 
+    @time_it(last=True)
     def save_item(self, idx: int, rec: dict[str, Any]) -> dict[str, Any]:
         cfg_json = _config_to_jsonable(rec.get("configuration"))
         item_id = (self.item_namer(idx, rec)
@@ -271,6 +276,7 @@ class IncrementalSaver:
             if g is None:
                 raise ValueError(f"{name}: graph_obj is missing; ensure GraphData.graph_obj is set.")
             g_path = item_dir / f"{name}.graph.json"
+            logger.info(f"  [save_item] {name}: saving graph ({g.number_of_nodes()} nodes, {g.number_of_edges()} edges)...")
             _save_graph(g, g_path)
             entry["graph_json"] = str(g_path.relative_to(self.run_dir))
 
@@ -282,6 +288,7 @@ class IncrementalSaver:
                 L = getattr(bundle, "laplacian_dense_matrix")
 
             L_path = item_dir / f"{name}.laplacian.npz"
+            logger.info(f"  [save_item] {name}: saving Laplacian {L.shape} as sparse npz...")
             _save_sparse_matrix(L, L_path)
             entry["laplacian_npz"] = str(L_path.relative_to(self.run_dir))
 
@@ -308,13 +315,14 @@ class IncrementalSaver:
         }
         for b in GRAPH_TYPES:
             item_entry[b] = handle_bundle(b)
-        
+
         self.manifest_items.append(item_entry)
         self._write_manifest()
 
         # Write per-item spectra.csv
         spectra_csv = item_dir / "spectra.csv"
         max_len = max((len(v) for v in spectra_by_bundle.values() if v is not None), default=0)
+        logger.info(f"  [save_item] Writing spectra CSV ({max_len} rows x {len(GRAPH_TYPES)} columns)...")
         with spectra_csv.open("w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["k", *GRAPH_TYPES])
