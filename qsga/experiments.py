@@ -570,7 +570,25 @@ class LaplacianHamiltoniansWorkshop:
         configure_file_logging(run_dir / "run.log")
 
 
-    def _create_merged_figure(self, configs_list, base_figsize, scanned_params_order=None, orientation="horizontal"):
+    def _get_scanned_params_from_config(self) -> list[str]:
+        """Return field names that have >1 unique value in the original ExperimentConfigurations.
+
+        Uses the original config lists rather than resolved SingleExperimentConfiguration values
+        so that lambda-derived params (e.g. num_perturbations=lambda x: x**2) are not mistakenly
+        treated as independently scanned dimensions.
+        """
+        fields = [
+            "n_num_qubits", "d_skeleton_regularity", "max_skeleton_locality",
+            "num_perturbations", "max_perturbation_locality", "perturbation_weights_bounds", "seed"
+        ]
+        result = []
+        for field in fields:
+            vals = getattr(self.configurations, field, None)
+            if vals is not None and len(vals) > 1:
+                result.append(field)
+        return result
+
+    def _create_merged_figure(self, configs_list, base_figsize, scanned_params_order=None, orientation="horizontal", restrict_params=None):
 
         fields = [
             "n_num_qubits", "d_skeleton_regularity", "max_skeleton_locality",
@@ -587,6 +605,11 @@ class LaplacianHamiltoniansWorkshop:
             unique_values[field] = seen
 
         scanned_params = [f for f in fields if len(unique_values[f]) > 1]
+
+        # Drop params that weren't independently varied in the original config spec
+        # (e.g. num_perturbations derived via a lambda from n_num_qubits)
+        if restrict_params is not None:
+            scanned_params = [p for p in scanned_params if p in restrict_params]
 
         if scanned_params_order is not None:
             ordered = [p for p in scanned_params_order if p in scanned_params]
@@ -759,7 +782,8 @@ class LaplacianHamiltoniansWorkshop:
         used_axes = set()
         if merge_plots:
             merged_fig, axes_map, scanned_params, unique_values = self._create_merged_figure(
-                configs_list, (5, 4), scanned_params_order, orientation=orientation
+                configs_list, (5, 4), scanned_params_order, orientation=orientation,
+                restrict_params=self._get_scanned_params_from_config()
             )
 
         # --- iterate configs + results + manifest items ---
@@ -925,7 +949,8 @@ class LaplacianHamiltoniansWorkshop:
                 if graph_name in exclude_graphs:
                     continue
                 fig, axes_map, sp, uv = self._create_merged_figure(
-                    configs_list, (6, 4), scanned_params_order, orientation=orientation
+                    configs_list, (6, 4), scanned_params_order, orientation=orientation,
+                    restrict_params=self._get_scanned_params_from_config()
                 )
                 merged_figs[graph_name] = fig
                 merged_axes_maps[graph_name] = axes_map
@@ -1028,7 +1053,8 @@ class LaplacianHamiltoniansWorkshop:
                 if graph_name in exclude_graphs:
                     continue
                 fig, axes_map, sp, uv = self._create_merged_figure(
-                    configs_list, (7, 5), scanned_params_order, orientation=orientation
+                    configs_list, (7, 5), scanned_params_order, orientation=orientation,
+                    restrict_params=self._get_scanned_params_from_config()
                 )
                 merged_figs[graph_name] = fig
                 merged_axes_maps[graph_name] = axes_map
@@ -1329,25 +1355,25 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    for q in range(11, 14):
-        ec = ExperimentConfigurations(
-            n_num_qubits=[q], # q
-            d_skeleton_regularity=[3],
-            max_skeleton_locality=[3],
-            num_perturbations=[
-                # 0,
-                # lambda x: int(np.sqrt(x)),
-                lambda x: x**2,
-                lambda x: 2**x,
-                lambda x: 2 * 2**x
-            ],
-            max_perturbation_locality=list(range(1, q + 1)), # m
-            perturbation_weights_bounds=[(0.5, 5)],
-            seed=[32],
-        )
+    # for q in range(11, 14):
+    #     ec = ExperimentConfigurations(
+    #         n_num_qubits=[q], # q
+    #         d_skeleton_regularity=[3],
+    #         max_skeleton_locality=[3],
+    #         num_perturbations=[
+    #             # 0,
+    #             # lambda x: int(np.sqrt(x)),
+    #             lambda x: x**2,
+    #             lambda x: 2**x,
+    #             lambda x: 2 * 2**x
+    #         ],
+    #         max_perturbation_locality=list(range(1, q + 1)), # m
+    #         perturbation_weights_bounds=[(0.5, 5)],
+    #         seed=[32],
+    #     )
 
-        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-        experiment.run_all("experiments_data_archive", draw_graphs=False)
+    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1384,12 +1410,12 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
-    # data_dir_path = Path(
-    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
-    # )
-    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-18_22-10-34"))
-    # experiment.analyze_results()
-    # experiment.plot_results(orientation="vertical")#show_only=True)
-    # experiment.plot_matrices()#show_only=True)
-    # experiment.plot_soergel_distance()
+    data_dir_path = Path(
+        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    )
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-19_12-21-40"))
+    experiment.analyze_results()
+    experiment.plot_results(orientation="vertical")#show_only=True)
+    experiment.plot_matrices()#show_only=True)
+    experiment.plot_soergel_distance()
     # experiment.draw_graphs()#show_only=True)
