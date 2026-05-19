@@ -8,6 +8,8 @@ from numpy.typing import NDArray
 
 from qiskit.quantum_info import SparsePauliOp
 
+from qsga.util import time_it
+
 if TYPE_CHECKING:
     from numpy.random import Generator
 
@@ -102,6 +104,7 @@ def obtain_random_pauli_strings(
     return list(pauli_strings)
 
 
+@time_it
 def obtain_skeleton_laplacian(
     n: int,
     d: int,
@@ -280,6 +283,7 @@ def scale_m_local_perturbation(
     return scaled_perturbation
 
 
+@time_it
 def obtain_random_perturbed_laplacian(
     skeleton_hamiltonian: SparsePauliOp, # L_s
     num_perturbations: int, # n_p
