@@ -346,13 +346,11 @@ class LaplacianHamiltoniansWorkshop:
 
     def perform_experiment(self, save_dir: str | Path | None = None) -> None:
         """Generate all Laplacian graphs and compute their properties.
-        
+
         For each configuration, generates:
         - Skeleton Laplacian graph.
-        - Definite-order perturbed Laplacian (`PerturbationScalingMethod.LEFT`).
-        - Random-order perturbed (ROP) Laplacian (`PerturbationScalingMethod.RANDOM_LEFT_RIGHT`).
         - Randomly Perturbed Scrambled Laplacian (`PerturbationScalingMethod.SCRAMBLE`).
-        - Random graphs with matching densities and weights.
+        - Erdős–Rényi graphs matching the scrambled and ROP perturbed graphs in density and weights.
         """
         reset_log_capture()
 
@@ -388,26 +386,6 @@ class LaplacianHamiltoniansWorkshop:
                     max_perturbation_locality=config.max_perturbation_locality,
                     random_perturbation_weights_bounds=config.perturbation_weights_bounds,
                 )
-                
-                definite_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
-                    **kwargs,
-                    perturbations_scaling_method=PerturbationScalingMethod.LEFT,
-                    pseudo_rng=np.random.default_rng(seed=config.seed)
-                )
-                definite_order_perturbed_graph_data = GraphData(
-                    laplacian_sparse_obj=definite_order_perturbed_laplacian,
-                    num_laplacian_paulis=len(definite_order_perturbed_laplacian)
-                )
-                
-                random_order_perturbed_laplacian = obtain_random_perturbed_laplacian(
-                    **kwargs,
-                    perturbations_scaling_method=PerturbationScalingMethod.RANDOM_LEFT_RIGHT,
-                    pseudo_rng=np.random.default_rng(seed=config.seed)
-                )
-                random_order_perturbed_graph_data = GraphData(
-                    laplacian_sparse_obj=random_order_perturbed_laplacian,
-                    num_laplacian_paulis=len(random_order_perturbed_laplacian)
-                )
 
                 random_order_scrambled_perturbed_laplacian = obtain_random_perturbed_laplacian(
                     **kwargs,
@@ -423,85 +401,24 @@ class LaplacianHamiltoniansWorkshop:
                     "config_index": config_index,
                     "configuration": config,
                     "skeleton_graph": skeleton_graph_data,
-                    "definite_order_perturbed_graph": definite_order_perturbed_graph_data,
-                    "random_order_perturbed_graph": random_order_perturbed_graph_data,
                     "random_order_scrambled_perturbed_graph": random_order_scrambled_perturbed_graph_data,
                 }
 
-                # Same density Erdos-Renyi graph as the scrambled perturbed graph
-                scrambled_like_random_graph = obtain_random_weighted_graph(
-                    num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
-                    required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
-                    required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
-                    seed=config.seed
-                )
-                scrambled_like_random_graph_data = GraphData(
-                    graph_obj=scrambled_like_random_graph,
-                    num_laplacian_paulis=-1
-                ) 
-                config_data["scrambled_like_random_graph"] = scrambled_like_random_graph_data
-
-                # Same density Erdos-Renyi graph as the scrambled perturbed graph + SAME WEIGHTS DISTRIBUTION
+                # Erdős–Rényi graph matching scrambled perturbed graph density + weights
                 weights = np.abs(
                     np.triu(random_order_scrambled_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
                 )
                 weights = weights[weights != 0]
-                scrambled_like_random_graph_same_weights = obtain_random_weighted_graph(
-                    num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
-                    required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
-                    required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
-                    seed=config.seed,
-                    weights_distribution=weights
-                )
-                scrambled_like_random_graph_same_weights_data = GraphData(
-                    graph_obj=scrambled_like_random_graph_same_weights,
+                config_data["scrambled_like_random_graph_same_weights"] = GraphData(
+                    graph_obj=obtain_random_weighted_graph(
+                        num_nodes=random_order_scrambled_perturbed_graph_data.metadata.num_nodes,
+                        required_unweighted_density=random_order_scrambled_perturbed_graph_data.metadata.unweighted_density,
+                        required_weighted_density=random_order_scrambled_perturbed_graph_data.metadata.weighted_density,
+                        seed=config.seed,
+                        weights_distribution=weights
+                    ),
                     num_laplacian_paulis=-1
                 )
-                config_data["scrambled_like_random_graph_same_weights"] = scrambled_like_random_graph_same_weights_data
-
-                # Same density Erdos-Renyi graph as the random order perturbed graph
-                rop_like_random_graph = obtain_random_weighted_graph(
-                    num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
-                    required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
-                    required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
-                    seed=config.seed
-                )
-                rop_like_random_graph_data = GraphData(
-                    graph_obj=rop_like_random_graph,
-                    num_laplacian_paulis=-1
-                )
-                config_data["rop_like_random_graph"] = rop_like_random_graph_data
-
-                # Same density Erdos-Renyi graph as the random order perturbed graph + SAME WEIGHTS DISTRIBUTION
-                weights = np.abs(
-                    np.triu(random_order_perturbed_graph_data.laplacian_dense_matrix, k=1).flatten()
-                )
-                weights = weights[weights != 0]
-                rop_like_random_graph_same_weights = obtain_random_weighted_graph(
-                    num_nodes=random_order_perturbed_graph_data.metadata.num_nodes,
-                    required_unweighted_density=random_order_perturbed_graph_data.metadata.unweighted_density,
-                    required_weighted_density=random_order_perturbed_graph_data.metadata.weighted_density,
-                    seed=config.seed,
-                    weights_distribution=weights
-                )
-                rop_like_random_graph_same_weights_data = GraphData(
-                    graph_obj=rop_like_random_graph_same_weights,
-                    num_laplacian_paulis=-1
-                )
-                config_data["rop_like_random_graph_same_weights"] = rop_like_random_graph_same_weights_data
-
-                # Same density Erdos-Renyi graph as the definite order perturbed graph
-                dop_like_random_graph = obtain_random_weighted_graph(
-                    num_nodes=definite_order_perturbed_graph_data.metadata.num_nodes,
-                    required_unweighted_density=definite_order_perturbed_graph_data.metadata.unweighted_density,
-                    required_weighted_density=definite_order_perturbed_graph_data.metadata.weighted_density,
-                    seed=config.seed
-                )
-                dop_like_random_graph_data = GraphData(
-                    graph_obj=dop_like_random_graph,
-                    num_laplacian_paulis=-1
-                )
-                config_data["dop_like_random_graph"] = dop_like_random_graph_data
 
                 # Analyze configuration on-the-fly
                 logger.info(f"[config {config_index}] Starting spectral analysis ({config.num_nodes} nodes, {len(GRAPH_TYPES)} graph types)...")
@@ -1353,18 +1270,17 @@ class LaplacianHamiltoniansWorkshop:
                 except Exception as plot_err:
                     logger.error(f"Failed to generate plots for the partial run: {plot_err}")
             raise e
-        else:
-            self.plot_results(orientation=figures_orientation)
-            self.plot_matrices(orientation=figures_orientation)
-            self.plot_soergel_distance()
-
-            if draw_graphs:
-                self.draw_graphs(orientation=figures_orientation)
+        
+        self.plot_results(orientation=figures_orientation)
+        self.plot_matrices(orientation=figures_orientation)
+        self.plot_soergel_distance()
+        if draw_graphs:
+            self.draw_graphs(orientation=figures_orientation)
 
 
 if __name__ == "__main__":
 
-    for q in range(11, 14):
+    for q in range(11, 15):
         ec = ExperimentConfigurations(
             n_num_qubits=[q], # q
             d_skeleton_regularity=[3],

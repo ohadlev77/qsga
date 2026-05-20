@@ -17,7 +17,7 @@ from scipy import sparse
 import networkx as nx
 from networkx.readwrite import json_graph
 
-from qsga import GRAPH_TYPES
+from qsga import GRAPH_TYPES, OBSOLETE_GRAPHS
 from qsga.logging_setup import logger
 from qsga.util import time_it
 
@@ -56,6 +56,8 @@ def _collect_bundle_attrs_for_manifest(bundle: Any) -> dict[str, Any]:
     excluding the heavy fields:
       - laplacian_dense_matrix
       - laplacian_spectrum
+      - laplacian_pauli_repr
+      - laplacian_sparse_pauli_repr
     """
     # Access attrs from object or dict
     def g(name, default=None):
@@ -65,16 +67,8 @@ def _collect_bundle_attrs_for_manifest(bundle: Any) -> dict[str, Any]:
 
     attrs: dict[str, Any] = {}
 
-    # Laplacian Pauli representations (convert complex numbers to JSONable)
-    lpr = g("laplacian_pauli_repr")
-    if lpr is not None:
-        # expected: list[tuple[str, complex]]
-        attrs["laplacian_pauli_repr"] = _jsonify_seq_with_complex(lpr)
-
-    lspr = g("laplacian_sparse_pauli_repr")
-    if lspr is not None:
-        # expected: list[tuple[str, list[int], complex]]
-        attrs["laplacian_sparse_pauli_repr"] = _jsonify_seq_with_complex(lspr)
+    # NOTE: laplacian_pauli_repr and laplacian_sparse_pauli_repr are intentionally
+    # excluded — they can contain millions of terms and make manifest.json enormous.
 
     # Metadata (dataclass → dict)
     meta = g("metadata")
@@ -314,22 +308,24 @@ class IncrementalSaver:
             "configuration": cfg_json,
         }
         for b in GRAPH_TYPES:
-            item_entry[b] = handle_bundle(b)
+            if b not in OBSOLETE_GRAPHS:
+                item_entry[b] = handle_bundle(b)
 
         self.manifest_items.append(item_entry)
         self._write_manifest()
 
         # Write per-item spectra.csv
+        active_types = [b for b in GRAPH_TYPES if b not in OBSOLETE_GRAPHS]
         spectra_csv = item_dir / "spectra.csv"
         max_len = max((len(v) for v in spectra_by_bundle.values() if v is not None), default=0)
-        logger.info(f"  [save_item] Writing spectra CSV ({max_len} rows x {len(GRAPH_TYPES)} columns)...")
+        logger.info(f"  [save_item] Writing spectra CSV ({max_len} rows x {len(active_types)} columns)...")
         with spectra_csv.open("w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["k", *GRAPH_TYPES])
+            w.writerow(["k", *active_types])
             for k in range(max_len):
                 row = [k]
-                for b in GRAPH_TYPES:
-                    vals = spectra_by_bundle[b]
+                for b in active_types:
+                    vals = spectra_by_bundle.get(b)
                     row.append(float(vals[k]) if (vals is not None and k < len(vals)) else "")
                 w.writerow(row)
 
@@ -380,10 +376,11 @@ def load_dataset(in_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, An
         if not path.exists():
             return None
         rows = list(csv.DictReader(path.open("r", newline="")))
-        out: dict[str, list[float]] = {b: [] for b in GRAPH_TYPES}
+        active_types = [b for b in GRAPH_TYPES if b not in OBSOLETE_GRAPHS]
+        out: dict[str, list[float]] = {b: [] for b in active_types}
         for row in rows:
-            for b in GRAPH_TYPES:
-                cell = row[b]
+            for b in active_types:
+                cell = row.get(b, "")
                 if cell != "" and cell is not None:
                     out[b].append(float(cell))
         return {b: np.asarray(vals, dtype=float) for b, vals in out.items() if len(vals) > 0}
@@ -428,7 +425,7 @@ def load_dataset(in_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, An
             "config_index": item["config_index"],
             "configuration": item["configuration"],
             # "num_nodes": item["num_nodes"],
-            **{b: rebuild_bundle(item[b], item_dir, b, spectra_map) for b in GRAPH_TYPES},
+            **{b: rebuild_bundle(item[b], item_dir, b, spectra_map) for b in GRAPH_TYPES if b not in OBSOLETE_GRAPHS and b in item},
             "item_id": item["item_id"],
         })
 
