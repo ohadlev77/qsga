@@ -228,7 +228,7 @@ def test_partial_run_recovery(tmp_path):
     
     def side_effect(*args, **kwargs):
         nonlocal call_count
-        if call_count >= 3:
+        if call_count >= 1:
             raise ValueError("Simulated error in configuration processing")
         call_count += 1
         return original_obtain(*args, **kwargs)

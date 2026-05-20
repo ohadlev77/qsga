@@ -80,7 +80,8 @@ def test_collect_bundle_attrs_for_manifest():
     attrs = _collect_bundle_attrs_for_manifest(DummyBundle())
     assert attrs["seed"] == 42
     assert "laplacian_dense_matrix" not in attrs
-    assert attrs["laplacian_pauli_repr"] == [["IX", {"re": 1.0, "im": 0.0}]]
+    assert "laplacian_pauli_repr" not in attrs
+    assert "laplacian_sparse_pauli_repr" not in attrs
 
     if VERBOSE:
         print(f"\n--- test_collect_bundle_attrs_for_manifest ---")
