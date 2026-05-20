@@ -16,6 +16,7 @@ OBSOLETE_GRAPHS = (
     "random_order_perturbed_graph",
     "dop_like_random_graph",
     "rop_like_random_graph",
+    "rop_like_random_graph_same_weights",
     "scrambled_like_random_graph"
 )
 
