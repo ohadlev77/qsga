@@ -75,8 +75,7 @@ def _collect_bundle_attrs_for_manifest(bundle: Any) -> dict[str, Any]:
     if meta is not None:
         attrs["metadata"] = _maybe_asdict(meta)
 
-    # You might want to persist seed-like info if present (optional)
-    for opt in ("seed",):
+    for opt in ("seed", "num_laplacian_paulis", "num_commuting_groups"):
         v = g(opt)
         if v is not None:
             attrs[opt] = v
@@ -411,7 +410,7 @@ def load_dataset(in_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, An
         # - laplacian_pauli_repr
         # - laplacian_sparse_pauli_repr
         # - seed (if present)
-        for k in ("metadata", "laplacian_pauli_repr", "laplacian_sparse_pauli_repr", "seed"):
+        for k in ("metadata", "laplacian_pauli_repr", "laplacian_sparse_pauli_repr", "seed", "num_laplacian_paulis", "num_commuting_groups"):
             if k in meta:
                 out[k] = meta[k]
 

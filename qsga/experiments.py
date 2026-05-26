@@ -10,6 +10,7 @@ from qiskit.quantum_info import SparsePauliOp
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, VPacker
 
 from qsga import (
     GRAPH_TYPES,
@@ -309,12 +310,14 @@ class LaplacianHamiltoniansWorkshop:
                     if "laplacian_obj" in b_dict:
                         gd.laplacian_dense_matrix = b_dict["laplacian_obj"]
 
-                    if "laplacian_pauli_repr" in b_dict:
+                    if "num_laplacian_paulis" in b_dict:
+                        gd.num_laplacian_paulis = b_dict["num_laplacian_paulis"]
+                    elif "laplacian_pauli_repr" in b_dict:
                         gd.num_laplacian_paulis = len(b_dict["laplacian_pauli_repr"])
                     else:
                         gd.num_laplacian_paulis = "N/A"
-                        
-                    gd.num_commuting_groups = "N/A"
+
+                    gd.num_commuting_groups = b_dict.get("num_commuting_groups", "N/A")
                     config_result[gtype] = gd
 
         obj.data = data
@@ -668,7 +671,10 @@ class LaplacianHamiltoniansWorkshop:
         exclude_graphs: Iterable[str] = OBSOLETE_GRAPHS,
         show_only: bool = False,
         scanned_params_order: Iterable[str] | None = None,
+        show_titles: bool = True,
         orientation: str = "horizontal",
+        highlight_pauli_compression: bool = False,
+        save_tag: str | None = None,
     ) -> None:
         """Plot the Laplacian spectra for each configuration.
 
@@ -678,6 +684,11 @@ class LaplacianHamiltoniansWorkshop:
             merge_plots: If True, create a merged grid of all configurations.
             exclude_graphs: Graph types to skip in plots.
             show_only: If True, show the plots instead of saving them to disk.
+            highlight_pauli_compression: If True, annotate each plot with a box
+                showing the Pauli-count gap between the Randomly Perturbed and
+                Erdős-Rényi graphs and their compression ratio.
+            save_tag: If provided, appended to output filenames as ``__<tag>``
+                before the ``.png`` extension (e.g. ``spectra_plot__NO_TITLE.png``).
         """
         if not hasattr(self, "manifest_data") or not self.manifest_data:            
             items = []
@@ -700,6 +711,13 @@ class LaplacianHamiltoniansWorkshop:
         default_markers = ['o', 's', '^', 'D', '+', 'x', 'P', '*']
         marker_cycler = cycle(default_markers)
         dpi = 300
+
+        def _fmt_num(val, threshold: int = 999) -> str:
+            if not isinstance(val, int) or val <= threshold:
+                return str(val)
+            exp = int(np.floor(np.log10(val)))
+            coeff = val / 10 ** exp
+            return f"${coeff:.3g}\\times10^{{{exp}}}$"
 
         # --- figure grid if merge_plots ---
         configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
@@ -733,6 +751,8 @@ class LaplacianHamiltoniansWorkshop:
                 ax = axes_map[coord]
                 used_axes.add(ax)
 
+            graph_colors = {}
+
             for graph_type in GRAPH_TYPES:
                 if graph_type in exclude_graphs:
                     continue
@@ -754,18 +774,21 @@ class LaplacianHamiltoniansWorkshop:
 
                 graph_label_name = GRAPHS_TO_PLOT_MAP[graph_type]
                 label = (
-                    f"{graph_label_name} ($|E| = $ {bundle.metadata.num_edges}, "
-                    f"$|P| = ${bundle.num_laplacian_paulis}, "
-                    f"$|P_G| = ${bundle.num_commuting_groups})"
+                    f"{graph_label_name} ($|E| = $ {_fmt_num(bundle.metadata.num_edges)}, "
+                    f"$|P| = ${_fmt_num(bundle.num_laplacian_paulis)}, "
+                    f"$|P_G| = ${_fmt_num(bundle.num_commuting_groups)})"
                 )
-                
-                plt.scatter(
+
+                sc = plt.scatter(
                     nodes_indexes[window_start:window_ends],
                     np.asarray(spec)[window_start:window_ends],
                     s=scatter_size,
                     label=label,
                     marker=marker,
                 )
+                fc = sc.get_facecolor()
+                if len(fc):
+                    graph_colors[graph_type] = tuple(fc[0])
 
                 if ax is not None:
                     ax.scatter(
@@ -781,30 +804,84 @@ class LaplacianHamiltoniansWorkshop:
                 f"{config_execution_result['spectra_comparison']}"
             )
 
+            # Resolve Pauli counts + actual scatter colors for the compression box
+            pauli_ann_data = None
+            if highlight_pauli_compression:
+                _rp_key = "random_order_scrambled_perturbed_graph"
+                _er_key = "scrambled_like_random_graph_same_weights"
+                rp_bundle = config_execution_result.get(_rp_key)
+                er_bundle = config_execution_result.get(_er_key)
+                if rp_bundle is not None and er_bundle is not None:
+                    rp_p = rp_bundle.num_laplacian_paulis
+                    er_p = er_bundle.num_laplacian_paulis
+                    if isinstance(rp_p, int) and isinstance(er_p, int) and rp_p > 0:
+                        pauli_ann_data = (
+                            rp_p, er_p,
+                            graph_colors.get(_rp_key, "#ff7f0e"),
+                            graph_colors.get(_er_key, "#2ca02c"),
+                        )
+
+            def _attach_pauli_box(target_ax, rp_p, er_p, rp_c, er_c, fontsize: int = 9):
+                ratio = er_p / rp_p
+                areas = VPacker(align="left", pad=4, sep=5, children=[
+                    TextArea("#Pauli terms", textprops=dict(
+                        fontsize=fontsize, fontweight="bold", color="#333333"
+                    )),
+                    TextArea(f"ROP: {rp_p:,}", textprops=dict(
+                        fontsize=fontsize, color=rp_c, fontweight="bold"
+                    )),
+                    TextArea(f"ER: {er_p:,}", textprops=dict(
+                        fontsize=fontsize, color=er_c, fontweight="bold"
+                    )),
+                    TextArea(f"×{ratio:,.0f}", textprops=dict(
+                        fontsize=max(fontsize - 1, 7), color="#555555", style="italic"
+                    )),
+                ])
+                ab = AnchoredOffsetbox(
+                    loc="upper left",
+                    bbox_to_anchor=(0.65, 0.47),
+                    bbox_transform=target_ax.transAxes,
+                    child=areas,
+                    frameon=True,
+                )
+                ab.patch.set_edgecolor("#aaaaaa")
+                ab.patch.set_facecolor("#f8f8f8")
+                ab.patch.set_alpha(0.93)
+                target_ax.add_artist(ab)
+
             plt.xlabel("Eigenvalue index")
             plt.ylabel("Eigenvalue")
             plt.legend(
                 loc="upper left",
                 frameon=True,
-                fontsize=8,
-                markerscale=2,
+                fontsize=9,
+                markerscale=3,
                 framealpha=0.9
             )
             plt.grid(True, linestyle="--", alpha=0.4)
-            plt.title(title_str, fontsize=8)
-            
+
+            if show_titles:
+                plt.title(title_str, fontsize=8)
+
+            if pauli_ann_data is not None:
+                _attach_pauli_box(plt.gca(), *pauli_ann_data)
+
             if not show_only:
-                out_png = Path(run_dir, manifest_item["item_id"], "spectra_plot.png")
+                stem = f"spectra_plot__{save_tag}" if save_tag else "spectra_plot"
+                out_png = Path(run_dir, manifest_item["item_id"], f"{stem}.png")
                 out_png.parent.mkdir(parents=True, exist_ok=True)
                 plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
-                plt.close()
+            plt.close()
 
             # format merged figure
             if ax is not None:
                 ax.set_xlabel("Eigenvalue index")
                 ax.set_ylabel("Eigenvalue")
                 ax.grid(True, linestyle="--", alpha=0.4)
-                ax.set_title(title_str, fontsize=8)
+
+                if show_titles:
+                    ax.set_title(title_str, fontsize=8)
+
                 ax.legend(
                     loc="upper left",
                     frameon=True,
@@ -812,6 +889,8 @@ class LaplacianHamiltoniansWorkshop:
                     markerscale=2,
                     framealpha=0.9
                 )
+                if pauli_ann_data is not None:
+                    _attach_pauli_box(ax, *pauli_ann_data)
 
         if merge_plots:
             # Hide any unused axes in sparse parameter grids
@@ -823,7 +902,8 @@ class LaplacianHamiltoniansWorkshop:
             # It causes layout engine conflicts when used with 'constrained'.
             
             if not show_only:
-                merged_path = Path(run_dir, "merged_spectra_plot.png")
+                merged_stem = f"merged_spectra_plot__{save_tag}" if save_tag else "merged_spectra_plot"
+                merged_path = Path(run_dir, f"{merged_stem}.png")
                 merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
                 plt.close(merged_fig)
 
@@ -1245,16 +1325,19 @@ class LaplacianHamiltoniansWorkshop:
             plt.show()
 
     def run_all(
-        self, 
-        filepath: str, 
+        self,
+        filepath: str,
         draw_graphs: bool = False,
-        figures_orientation: str = "horizontal"
+        figures_orientation: str = "horizontal",
+        show_titles: bool = True,
+        highlight_pauli_compression: bool = False,
     ) -> None:
         """Execute the complete experiment pipeline.
-        
+
         Args:
             filepath: Path where results will be saved.
             figures_orientation: Orientation of the figures (horizontal/vertical).
+            highlight_pauli_compression: Passed through to plot_results.
         """
         try:
             self.perform_experiment(save_dir=filepath)
@@ -1262,7 +1345,11 @@ class LaplacianHamiltoniansWorkshop:
             if self.data:
                 logger.info(f"Experiment pipeline encountered an error, but attempting to generate plots for the {len(self.data)} successfully completed configurations.")
                 try:
-                    self.plot_results(orientation=figures_orientation)
+                    self.plot_results(
+                        orientation=figures_orientation,
+                        show_titles=show_titles,
+                        highlight_pauli_compression=highlight_pauli_compression
+                    )
                     self.plot_matrices(orientation=figures_orientation)
                     self.plot_soergel_distance()
                     if draw_graphs:
@@ -1270,8 +1357,8 @@ class LaplacianHamiltoniansWorkshop:
                 except Exception as plot_err:
                     logger.error(f"Failed to generate plots for the partial run: {plot_err}")
             raise e
-        
-        self.plot_results(orientation=figures_orientation)
+
+        self.plot_results(orientation=figures_orientation, highlight_pauli_compression=highlight_pauli_compression)
         self.plot_matrices(orientation=figures_orientation)
         self.plot_soergel_distance()
         if draw_graphs:
@@ -1280,25 +1367,25 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    for q in range(11, 15):
-        ec = ExperimentConfigurations(
-            n_num_qubits=[q], # q
-            d_skeleton_regularity=[3],
-            max_skeleton_locality=[3],
-            num_perturbations=[
-                # 0,
-                # lambda x: int(np.sqrt(x)),
-                lambda x: x**2,
-                lambda x: 2**x,
-                lambda x: 2 * 2**x
-            ],
-            max_perturbation_locality=list(range(1, q + 1)), # m
-            perturbation_weights_bounds=[(0.5, 5)],
-            seed=[32],
-        )
+    # for q in [13]:
+    #     ec = ExperimentConfigurations(
+    #         n_num_qubits=[q], # q
+    #         d_skeleton_regularity=[3],
+    #         max_skeleton_locality=[3],
+    #         num_perturbations=[
+    #             # 0,
+    #             # lambda x: int(np.sqrt(x)),
+    #             lambda x: x**2,
+    #             # lambda x: 2**x,
+    #             # lambda x: 2 * 2**x
+    #         ],
+    #         max_perturbation_locality=[3, 4], #list(range(1, q + 1)), # m
+    #         perturbation_weights_bounds=[(0.5, 5)],
+    #         seed=[32],
+    #     )
 
-        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-        experiment.run_all("experiments_data_archive", draw_graphs=False)
+    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1335,12 +1422,12 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
-    # data_dir_path = Path(
-    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
-    # )
-    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-19_12-21-40"))
-    # experiment.analyze_results()
-    # experiment.plot_results(orientation="vertical")#show_only=True)
+    data_dir_path = Path(
+        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    )
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-26_15-24-23"))
+    experiment.analyze_results()
+    experiment.plot_results(show_titles=False, highlight_pauli_compression=True, save_tag="FOR_PAPER")
     # experiment.plot_matrices()#show_only=True)
     # experiment.plot_soergel_distance()
     # experiment.draw_graphs()#show_only=True)
