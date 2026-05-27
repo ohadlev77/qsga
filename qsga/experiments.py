@@ -718,11 +718,14 @@ class LaplacianHamiltoniansWorkshop:
         default_markers = ['o', 's', '^', 'D', '+', 'x', 'P', '*']
         marker_cycler = cycle(default_markers)
 
-        def _fmt_num(val, threshold: int = 999) -> str:
+        def _fmt_num(val, threshold: int = 999, bold: bool = False) -> str:
             if not isinstance(val, int) or val <= threshold:
-                return str(val)
+                s = str(val)
+                return f"$\\mathbf{{{s}}}$" if bold else s
             exp = int(np.floor(np.log10(val)))
             coeff = val / 10 ** exp
+            if bold:
+                return f"$\\mathbf{{{coeff:.3g}}}{{\\times}}\\mathbf{{10}}^{{\\mathbf{{{exp}}}}}$"
             return f"${coeff:.3g}\\times10^{{{exp}}}$"
 
         # --- figure grid if merge_plots ---
@@ -841,37 +844,49 @@ class LaplacianHamiltoniansWorkshop:
                             graph_colors.get(_er_key, "#2ca02c"),
                         )
 
-            def _attach_stats_table(target_ax, rows, row_colors=None, fontsize: int = 8) -> None:
+            _BOLD_PAULI_GRAPH_TYPES = {
+                "random_order_scrambled_perturbed_graph",
+                "scrambled_like_random_graph_same_weights",
+            }
+
+            def _attach_stats_table(target_ax, rows, row_colors=None, fontsize: int = 8, graph_types=None) -> None:
                 col_labels = ["Graph", "#Edges $|E|$", "#Pauli strings $|P|$", "#Commuting groups $|P_G|$"]
+                bold_pauli_indices = {
+                    i for i, gt in enumerate(graph_types or [])
+                    if gt in _BOLD_PAULI_GRAPH_TYPES
+                }
                 cell_text = [
-                    [name, _fmt_num(e), _fmt_num(p), _fmt_num(pg)]
-                    for name, e, p, pg in rows
+                    [
+                        name,
+                        _fmt_num(e),
+                        _fmt_num(p, bold=(i in bold_pauli_indices)),
+                        _fmt_num(pg),
+                    ]
+                    for i, (name, e, p, pg) in enumerate(rows)
                 ]
                 tbl = target_ax.table(
                     cellText=cell_text,
                     colLabels=col_labels,
                     cellLoc="center",
                     loc="bottom",
-                    bbox=[0, -0.66, 1, 0.44],
+                    bbox=[0, -0.45, 1, 0.30],
                 )
                 tbl.auto_set_font_size(False)
                 tbl.set_fontsize(fontsize)
 
-                def _lighten(rgba):
-                    r, g, b = rgba[:3]
-                    return (r * 0.22 + 0.78, g * 0.22 + 0.78, b * 0.22 + 0.78, 1.0)
-
                 for (row, col), cell in tbl.get_celld().items():
                     cell.set_edgecolor("#cccccc")
+
                     if row == 0:
                         cell.set_facecolor("#e8e8e8")
                         cell.set_text_props(fontweight="bold")
                     elif row_colors is not None and (row - 1) < len(row_colors):
                         color = row_colors[row - 1]
                         if color is not None:
-                            # cell.set_facecolor(_lighten(color))
                             if col == 0:
                                 cell.set_text_props(color=color[:3], fontweight="bold")
+                            elif col == 2 and (row - 1) in bold_pauli_indices:
+                                cell.set_text_props(color=color[:3])
 
                 fig = target_ax.get_figure()
                 try:
@@ -880,7 +895,7 @@ class LaplacianHamiltoniansWorkshop:
                 except (ImportError, AttributeError):
                     _is_constrained = getattr(fig, "_constrained", False)
                 if not _is_constrained:
-                    fig.subplots_adjust(bottom=0.44)
+                    fig.subplots_adjust(bottom=0.32)
 
             def _attach_pauli_box(target_ax, rp_p, er_p, rp_c, er_c, fontsize: int = 9):
                 ratio = er_p / rp_p
@@ -929,7 +944,7 @@ class LaplacianHamiltoniansWorkshop:
 
             if show_stats_table and stats_rows:
                 _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
-                _attach_stats_table(plt.gca(), stats_rows, row_colors=_row_colors)
+                _attach_stats_table(plt.gca(), stats_rows, row_colors=_row_colors, graph_types=stats_graph_types)
 
             if not show_only:
                 stem = f"spectra_plot__{save_tag}" if save_tag else "spectra_plot"
@@ -959,7 +974,7 @@ class LaplacianHamiltoniansWorkshop:
 
                 if show_stats_table and stats_rows:
                     _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
-                    _attach_stats_table(ax, stats_rows, row_colors=_row_colors, fontsize=7)
+                    _attach_stats_table(ax, stats_rows, row_colors=_row_colors, fontsize=7, graph_types=stats_graph_types)
 
         if merge_plots:
             # Hide any unused axes in sparse parameter grids
@@ -1058,7 +1073,8 @@ class LaplacianHamiltoniansWorkshop:
                         filename = f"{filename}_{save_tag}"
                     filename = f"{filename}.png"
 
-                    plt.savefig(Path(config_data_path, filename), dpi=FIGURES_DPI)
+                    plt.tight_layout()
+                    plt.savefig(Path(config_data_path, filename), dpi=FIGURES_DPI, bbox_inches="tight")
                     plt.close()
 
                 # Merged plot
@@ -1212,6 +1228,7 @@ class LaplacianHamiltoniansWorkshop:
                 )
                 plt.colorbar(nodes, ax=ax, label="Weighted degree", shrink=0.7)
                 ax.axis("off")
+                ax.margins(0.02)
                 if show_titles:
                     plt.title(f"{graph_name} - {config}")
 
@@ -1221,6 +1238,7 @@ class LaplacianHamiltoniansWorkshop:
                         filename = f"{filename}_{save_tag}"
                     filename = f"{filename}_graph_draw.png"
 
+                    plt.tight_layout()
                     plt.savefig(Path(config_data_path, filename), dpi=FIGURES_DPI, bbox_inches="tight")
                     plt.close()
 
@@ -1487,7 +1505,7 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    # for q in [10]:
+    # for q in [8]:
     #     ec = ExperimentConfigurations(
     #         n_num_qubits=[q], # q
     #         d_skeleton_regularity=[3],
@@ -1500,7 +1518,7 @@ if __name__ == "__main__":
     #             lambda x: 2**x,
     #             # lambda x: 2 * 2**x
     #         ],
-    #         max_perturbation_locality=[3, 4], #list(range(1, q + 1)), # m
+    #         max_perturbation_locality=[4], #list(range(1, q + 1)), # m
     #         perturbation_weights_bounds=[(0.5, 5)],
     #         seed=[32],
     #     )
@@ -1548,9 +1566,9 @@ if __name__ == "__main__":
     )
     save_tag = "FOR_PAPER"
 
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_09-35-22"))
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_11-54-18"))
     experiment.analyze_results()
-    experiment.plot_results()#show_stats_table=True, save_tag="WITH_STATS_TABLE")#show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
-    # experiment.plot_matrices()#show_titles=False, save_tag=save_tag)
+    experiment.plot_results(descriptive_legend=False, save_tag=save_tag, show_titles=False)
+    experiment.plot_matrices(show_titles=False, save_tag=save_tag)
     # experiment.plot_soergel_distance()
-    # experiment.draw_graphs()#show_titles=False, save_tag=save_tag)
+    experiment.draw_graphs(show_titles=False, save_tag=save_tag)
