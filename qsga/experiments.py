@@ -1064,13 +1064,14 @@ class LaplacianHamiltoniansWorkshop:
         run_dir.mkdir(parents=True, exist_ok=True)
 
         configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
-        
+
         merged_figs = {}
         merged_axes_maps = {}
+        merged_figs_last_nodes = {}
         scanned_params = []
         unique_values = {}
         used_axes = {g: set() for g in GRAPH_TYPES}
-        
+
         if merge_plots:
             for graph_name in GRAPH_TYPES:
                 if graph_name in exclude_graphs:
@@ -1083,6 +1084,22 @@ class LaplacianHamiltoniansWorkshop:
                 merged_axes_maps[graph_name] = axes_map
                 scanned_params = sp
                 unique_values = uv
+
+        # Pre-compute global degree range per graph type for a consistent colorbar scale
+        # across all subplots in the merged figure.
+        global_degree_min: dict[str, float] = {}
+        global_degree_max: dict[str, float] = {}
+        for config_data in self.data:
+            for graph_name in GRAPH_TYPES:
+                if graph_name in exclude_graphs or graph_name not in config_data:
+                    continue
+                graph_obj = config_data[graph_name].graph_obj
+                if graph_obj is None:
+                    continue
+                degs = [d for _, d in graph_obj.degree(weight="weight")]
+                if degs:
+                    global_degree_min[graph_name] = min(global_degree_min.get(graph_name, float("inf")), min(degs))
+                    global_degree_max[graph_name] = max(global_degree_max.get(graph_name, float("-inf")), max(degs))
 
         for idx, config_data in enumerate(self.data):
             config = configs_list[idx]
@@ -1097,7 +1114,7 @@ class LaplacianHamiltoniansWorkshop:
                     continue
                 if graph_name not in config_data:
                     continue
-                
+
                 graph_obj = config_data[graph_name].graph_obj
                 if graph_obj is None:
                     continue
@@ -1107,11 +1124,11 @@ class LaplacianHamiltoniansWorkshop:
                 degrees = [deg for node, deg in graph_obj.degree(weight="weight")]
                 num_edges = graph_obj.number_of_edges()
                 edge_alpha = max(0.05, min(0.5, 3.0 / np.sqrt(max(num_edges, 1))))
-                
+
                 # Individual plot
                 plt.figure(figsize=(8, 6), dpi=FIGURES_DPI)
                 ax = plt.gca()
-                nx.draw_networkx_nodes(
+                nodes = nx.draw_networkx_nodes(
                     graph_obj, pos, ax=ax,
                     node_size=25,
                     node_color=degrees,
@@ -1126,10 +1143,11 @@ class LaplacianHamiltoniansWorkshop:
                     edge_color="gray",
                     width=0.8
                 )
+                plt.colorbar(nodes, ax=ax, label="Weighted degree", shrink=0.7)
                 ax.axis("off")
                 if show_titles:
                     plt.title(f"{graph_name} - {config}")
-                
+
                 if not show_only:
                     filename = graph_name
                     if save_tag is not None:
@@ -1144,16 +1162,19 @@ class LaplacianHamiltoniansWorkshop:
                     coord = tuple(unique_values[p].index(getattr(config, p)) for p in scanned_params)
                     ax = merged_axes_maps[graph_name][coord]
                     used_axes[graph_name].add(ax)
-                    
-                    nx.draw_networkx_nodes(
+
+                    merged_nodes = nx.draw_networkx_nodes(
                         graph_obj, pos, ax=ax,
                         node_size=15,
                         node_color=degrees,
                         cmap=plt.cm.plasma,
+                        vmin=global_degree_min.get(graph_name),
+                        vmax=global_degree_max.get(graph_name),
                         alpha=0.9,
                         edgecolors="white",
                         linewidths=0.3
                     )
+                    merged_figs_last_nodes[graph_name] = merged_nodes
                     nx.draw_networkx_edges(
                         graph_obj, pos, ax=ax,
                         alpha=edge_alpha,
@@ -1170,7 +1191,10 @@ class LaplacianHamiltoniansWorkshop:
                 for coord, ax_item in axes_map.items():
                     if ax_item not in used_axes[graph_name]:
                         ax_item.set_visible(False)
-                
+
+                if graph_name in merged_figs_last_nodes:
+                    fig.colorbar(merged_figs_last_nodes[graph_name], ax=list(axes_map.values()), label="Weighted degree", shrink=0.6)
+
                 try:
                     fig.tight_layout()
                 except Exception:
@@ -1459,7 +1483,7 @@ if __name__ == "__main__":
 
     experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_09-35-22"))
     experiment.analyze_results()
-    experiment.plot_results(show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
-    experiment.plot_matrices(show_titles=False, save_tag=save_tag)
+    experiment.plot_results()#show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
+    experiment.plot_matrices()#show_titles=False, save_tag=save_tag)
     # experiment.plot_soergel_distance()
-    experiment.draw_graphs(show_titles=False, save_tag=save_tag)
+    experiment.draw_graphs()#show_titles=False, save_tag=save_tag)
