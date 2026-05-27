@@ -45,6 +45,9 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+FIGURES_DPI = 300
+
+
 @dataclass
 class SingleExperimentConfiguration:
     """Configuration for a single quantum graph Laplacian generation experiment.
@@ -618,7 +621,7 @@ class LaplacianHamiltoniansWorkshop:
             fig_width = base_figsize[0] * c_len * sf_cols + (sf_cols - 1) * (base_figsize[0] * SPACER_W)
             fig_height = base_figsize[1] * r_len * sf_rows + sf_rows * (base_figsize[1] * TITLE_H) + (sf_rows - 1) * (base_figsize[1] * SPACER_H)
 
-            fig = plt.figure(figsize=(fig_width, fig_height), layout='constrained')
+            fig = plt.figure(figsize=(fig_width, fig_height), layout='constrained', dpi=FIGURES_DPI)
             gs = GridSpec(total_r, total_c, figure=fig, width_ratios=width_ratios, height_ratios=height_ratios)
 
             axes_map = {}
@@ -710,7 +713,6 @@ class LaplacianHamiltoniansWorkshop:
         # --- plotting params ---
         default_markers = ['o', 's', '^', 'D', '+', 'x', 'P', '*']
         marker_cycler = cycle(default_markers)
-        dpi = 300
 
         def _fmt_num(val, threshold: int = 999) -> str:
             if not isinstance(val, int) or val <= threshold:
@@ -743,7 +745,7 @@ class LaplacianHamiltoniansWorkshop:
             scatter_size = max(100 / shown, 1.0)
 
             # always make individual plot
-            plt.figure()
+            plt.figure(dpi=FIGURES_DPI)
 
             ax = None
             if merge_plots:
@@ -870,7 +872,7 @@ class LaplacianHamiltoniansWorkshop:
                 stem = f"spectra_plot__{save_tag}" if save_tag else "spectra_plot"
                 out_png = Path(run_dir, manifest_item["item_id"], f"{stem}.png")
                 out_png.parent.mkdir(parents=True, exist_ok=True)
-                plt.savefig(out_png, dpi=dpi, bbox_inches="tight")
+                plt.savefig(out_png, dpi=FIGURES_DPI, bbox_inches="tight")
             plt.close()
 
             # format merged figure
@@ -904,7 +906,7 @@ class LaplacianHamiltoniansWorkshop:
             if not show_only:
                 merged_stem = f"merged_spectra_plot__{save_tag}" if save_tag else "merged_spectra_plot"
                 merged_path = Path(run_dir, f"{merged_stem}.png")
-                merged_fig.savefig(merged_path, dpi=dpi, bbox_inches="tight")
+                merged_fig.savefig(merged_path, dpi=FIGURES_DPI, bbox_inches="tight")
                 plt.close(merged_fig)
 
         if show_only:
@@ -917,6 +919,8 @@ class LaplacianHamiltoniansWorkshop:
         show_only: bool = False,
         scanned_params_order: Iterable[str] | None = None,
         orientation: str = "horizontal",
+        show_titles: bool = True,
+        save_tag: str | None = None,
     ) -> None:
         """Create sparsity pattern visualizations of Laplacian matrices.
         
@@ -942,7 +946,6 @@ class LaplacianHamiltoniansWorkshop:
         run_dir.mkdir(parents=True, exist_ok=True)
 
         configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
-        num_configs = len(self.data)
         
         merged_figs = {}
         merged_axes_maps = {}
@@ -978,11 +981,17 @@ class LaplacianHamiltoniansWorkshop:
                     continue
             
                 # Individual plot
-                plt.figure()
+                plt.figure(dpi=FIGURES_DPI)
                 plt.spy(config_data[graph_name].laplacian_dense_matrix, markersize=0.1)
-                plt.title(f"{graph_name} - {config}")
+                if show_titles:
+                    plt.title(f"{graph_name} - {config}")
                 if not show_only:
-                    plt.savefig(Path(config_data_path, f"{graph_name}_laplacian.png"))
+                    filename = f"{graph_name}_laplacian"
+                    if save_tag is not None:
+                        filename = f"{filename}_{save_tag}"
+                    filename = f"{filename}.png"
+
+                    plt.savefig(Path(config_data_path, filename), dpi=FIGURES_DPI)
                     plt.close()
 
                 # Merged plot
@@ -993,7 +1002,8 @@ class LaplacianHamiltoniansWorkshop:
                     
                     L = config_data[graph_name].laplacian_dense_matrix
                     ax.spy(L, markersize=0.2)
-                    ax.set_title(f"Config: {config}, nonzero_rate = {np.count_nonzero(L) / L.size:.2f}", fontsize=8)
+                    if show_titles:
+                        ax.set_title(f"Config: {config}, nonzero_rate = {np.count_nonzero(L) / L.size:.2f}", fontsize=8)
 
         if merge_plots:
             for graph_name, fig in merged_figs.items():
@@ -1006,9 +1016,15 @@ class LaplacianHamiltoniansWorkshop:
                     fig.tight_layout()
                 except Exception:
                     pass
+
                 if not show_only:
-                    merged_path = Path(run_dir, f"merged_{graph_name}_matrices.png")
-                    fig.savefig(merged_path, dpi=300, bbox_inches="tight")
+                    filename = f"merged_{graph_name}_matrices"
+                    if save_tag is not None:
+                        filename = f"{filename}_{save_tag}"
+                    filename = f"{filename}.png"
+
+                    merged_path = Path(run_dir, filename)
+                    fig.savefig(merged_path, dpi=FIGURES_DPI, bbox_inches="tight")
                     plt.close(fig)
 
         if show_only:
@@ -1021,6 +1037,8 @@ class LaplacianHamiltoniansWorkshop:
         show_only: bool = False,
         scanned_params_order: Iterable[str] | None = None,
         orientation: str = "horizontal",
+        show_titles: bool = True,
+        save_tag: str | None = None,
     ) -> None:
         """Draw the graph structures using NetworkX.
         
@@ -1046,7 +1064,6 @@ class LaplacianHamiltoniansWorkshop:
         run_dir.mkdir(parents=True, exist_ok=True)
 
         configs_list = [res["configuration"] for res in self.data] if self.data else list(self.configurations)
-        num_configs = len(self.data)
         
         merged_figs = {}
         merged_axes_maps = {}
@@ -1092,7 +1109,7 @@ class LaplacianHamiltoniansWorkshop:
                 edge_alpha = max(0.05, min(0.5, 3.0 / np.sqrt(max(num_edges, 1))))
                 
                 # Individual plot
-                plt.figure(figsize=(8, 6))
+                plt.figure(figsize=(8, 6), dpi=FIGURES_DPI)
                 ax = plt.gca()
                 nx.draw_networkx_nodes(
                     graph_obj, pos, ax=ax,
@@ -1110,10 +1127,16 @@ class LaplacianHamiltoniansWorkshop:
                     width=0.8
                 )
                 ax.axis("off")
-                plt.title(f"{graph_name} - {config}")
+                if show_titles:
+                    plt.title(f"{graph_name} - {config}")
                 
                 if not show_only:
-                    plt.savefig(Path(config_data_path, f"{graph_name}_graph.png"), dpi=300, bbox_inches="tight")
+                    filename = graph_name
+                    if save_tag is not None:
+                        filename = f"{filename}_{save_tag}"
+                    filename = f"{filename}_graph_draw.png"
+
+                    plt.savefig(Path(config_data_path, filename), dpi=FIGURES_DPI, bbox_inches="tight")
                     plt.close()
 
                 # Merged plot
@@ -1138,7 +1161,8 @@ class LaplacianHamiltoniansWorkshop:
                         width=0.5
                     )
                     ax.axis("off")
-                    ax.set_title(f"Config: {config}", fontsize=9)
+                    if show_titles:
+                        ax.set_title(f"Config: {config}", fontsize=9)
 
         if merge_plots:
             for graph_name, fig in merged_figs.items():
@@ -1152,8 +1176,13 @@ class LaplacianHamiltoniansWorkshop:
                 except Exception:
                     pass
                 if not show_only:
-                    merged_path = Path(run_dir, f"merged_{graph_name}_graphs.png")
-                    fig.savefig(merged_path, dpi=300, bbox_inches="tight")
+                    filename = f"merged_{graph_name}"
+                    if save_tag is not None:
+                        filename = f"{filename}_{save_tag}"
+                    filename = f"{filename}_graphs.png"
+
+                    merged_path = Path(run_dir, filename)
+                    fig.savefig(merged_path, dpi=FIGURES_DPI, bbox_inches="tight")
                     plt.close(fig)
 
         if show_only:
@@ -1232,7 +1261,7 @@ class LaplacianHamiltoniansWorkshop:
             groups[key].sort(key=lambda x: x[0])
 
         # Setup premium plotting style
-        plt.figure(figsize=figsize, dpi=300)
+        plt.figure(figsize=figsize, dpi=FIGURES_DPI)
         
         # Color palette: dynamic based on number of groups using a modern colormap
         num_curves = len(groups)
@@ -1318,7 +1347,7 @@ class LaplacianHamiltoniansWorkshop:
         
         if not show_only:
             out_png = run_dir / "soergel_distance_vs_locality.png"
-            plt.savefig(out_png, dpi=300, bbox_inches="tight")
+            plt.savefig(out_png, dpi=FIGURES_DPI, bbox_inches="tight")
             logger.info(f"Saved Soergel distance plot to: {out_png}")
             plt.close()
         else:
@@ -1367,16 +1396,17 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    # for q in [13]:
+    # for q in [10]:
     #     ec = ExperimentConfigurations(
     #         n_num_qubits=[q], # q
     #         d_skeleton_regularity=[3],
     #         max_skeleton_locality=[3],
     #         num_perturbations=[
-    #             # 0,
-    #             # lambda x: int(np.sqrt(x)),
+    #             0,
+    #             lambda x: int(np.sqrt(x)),
+    #             lambda x: x,
     #             lambda x: x**2,
-    #             # lambda x: 2**x,
+    #             lambda x: 2**x,
     #             # lambda x: 2 * 2**x
     #         ],
     #         max_perturbation_locality=[3, 4], #list(range(1, q + 1)), # m
@@ -1385,7 +1415,7 @@ if __name__ == "__main__":
     #     )
 
     #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    #     experiment.run_all("experiments_data_archive", draw_graphs=False)
+    #     experiment.run_all("experiments_data_archive", draw_graphs=True)
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1425,9 +1455,11 @@ if __name__ == "__main__":
     data_dir_path = Path(
         "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
     )
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-26_15-24-23"))
+    save_tag = "FOR_PAPER"
+
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_09-35-22"))
     experiment.analyze_results()
-    experiment.plot_results(show_titles=False, highlight_pauli_compression=True, save_tag="FOR_PAPER")
-    # experiment.plot_matrices()#show_only=True)
+    experiment.plot_results(show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
+    experiment.plot_matrices(show_titles=False, save_tag=save_tag)
     # experiment.plot_soergel_distance()
-    # experiment.draw_graphs()#show_only=True)
+    experiment.draw_graphs(show_titles=False, save_tag=save_tag)
