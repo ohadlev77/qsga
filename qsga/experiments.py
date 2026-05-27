@@ -677,7 +677,9 @@ class LaplacianHamiltoniansWorkshop:
         show_titles: bool = True,
         orientation: str = "horizontal",
         highlight_pauli_compression: bool = False,
+        show_stats_table: bool = False,
         save_tag: str | None = None,
+        descriptive_legend: bool = True
     ) -> None:
         """Plot the Laplacian spectra for each configuration.
 
@@ -690,6 +692,8 @@ class LaplacianHamiltoniansWorkshop:
             highlight_pauli_compression: If True, annotate each plot with a box
                 showing the Pauli-count gap between the Randomly Perturbed and
                 Erdős-Rényi graphs and their compression ratio.
+            show_stats_table: If True, legend entries show only graph names and a
+                comparison table with |E|, |P|, |P_G| is rendered below the axes.
             save_tag: If provided, appended to output filenames as ``__<tag>``
                 before the ``.png`` extension (e.g. ``spectra_plot__NO_TITLE.png``).
         """
@@ -727,8 +731,9 @@ class LaplacianHamiltoniansWorkshop:
         
         used_axes = set()
         if merge_plots:
+            _merge_base_figsize = (5, 5.5) if show_stats_table else (5, 4)
             merged_fig, axes_map, scanned_params, unique_values = self._create_merged_figure(
-                configs_list, (5, 4), scanned_params_order, orientation=orientation,
+                configs_list, _merge_base_figsize, scanned_params_order, orientation=orientation,
                 restrict_params=self._get_scanned_params_from_config()
             )
 
@@ -745,7 +750,8 @@ class LaplacianHamiltoniansWorkshop:
             scatter_size = max(100 / shown, 1.0)
 
             # always make individual plot
-            plt.figure(dpi=FIGURES_DPI)
+            _figsize = (8, 8) if show_stats_table else (6.4, 4.8)
+            plt.figure(figsize=_figsize, dpi=FIGURES_DPI)
 
             ax = None
             if merge_plots:
@@ -754,6 +760,8 @@ class LaplacianHamiltoniansWorkshop:
                 used_axes.add(ax)
 
             graph_colors = {}
+            stats_rows = []
+            stats_graph_types = []
 
             for graph_type in GRAPH_TYPES:
                 if graph_type in exclude_graphs:
@@ -775,11 +783,21 @@ class LaplacianHamiltoniansWorkshop:
                     marker = next(marker_cycler)
 
                 graph_label_name = GRAPHS_TO_PLOT_MAP[graph_type]
-                label = (
-                    f"{graph_label_name} ($|E| = $ {_fmt_num(bundle.metadata.num_edges)}, "
-                    f"$|P| = ${_fmt_num(bundle.num_laplacian_paulis)}, "
-                    f"$|P_G| = ${_fmt_num(bundle.num_commuting_groups)})"
-                )
+                label = graph_label_name
+                if show_stats_table:
+                    stats_rows.append((
+                        graph_label_name,
+                        bundle.metadata.num_edges,
+                        bundle.num_laplacian_paulis,
+                        bundle.num_commuting_groups,
+                    ))
+                    stats_graph_types.append(graph_type)
+                if descriptive_legend:
+                    label = (
+                        f"{label} ($|E| = $ {_fmt_num(bundle.metadata.num_edges)}, "
+                        f"$|P| = ${_fmt_num(bundle.num_laplacian_paulis)}, "
+                        f"$|P_G| = ${_fmt_num(bundle.num_commuting_groups)})"
+                    )
 
                 sc = plt.scatter(
                     nodes_indexes[window_start:window_ends],
@@ -822,6 +840,47 @@ class LaplacianHamiltoniansWorkshop:
                             graph_colors.get(_rp_key, "#ff7f0e"),
                             graph_colors.get(_er_key, "#2ca02c"),
                         )
+
+            def _attach_stats_table(target_ax, rows, row_colors=None, fontsize: int = 8) -> None:
+                col_labels = ["Graph", "#Edges $|E|$", "#Pauli strings $|P|$", "#Commuting groups $|P_G|$"]
+                cell_text = [
+                    [name, _fmt_num(e), _fmt_num(p), _fmt_num(pg)]
+                    for name, e, p, pg in rows
+                ]
+                tbl = target_ax.table(
+                    cellText=cell_text,
+                    colLabels=col_labels,
+                    cellLoc="center",
+                    loc="bottom",
+                    bbox=[0, -0.66, 1, 0.44],
+                )
+                tbl.auto_set_font_size(False)
+                tbl.set_fontsize(fontsize)
+
+                def _lighten(rgba):
+                    r, g, b = rgba[:3]
+                    return (r * 0.22 + 0.78, g * 0.22 + 0.78, b * 0.22 + 0.78, 1.0)
+
+                for (row, col), cell in tbl.get_celld().items():
+                    cell.set_edgecolor("#cccccc")
+                    if row == 0:
+                        cell.set_facecolor("#e8e8e8")
+                        cell.set_text_props(fontweight="bold")
+                    elif row_colors is not None and (row - 1) < len(row_colors):
+                        color = row_colors[row - 1]
+                        if color is not None:
+                            # cell.set_facecolor(_lighten(color))
+                            if col == 0:
+                                cell.set_text_props(color=color[:3], fontweight="bold")
+
+                fig = target_ax.get_figure()
+                try:
+                    from matplotlib.layout_engine import ConstrainedLayoutEngine
+                    _is_constrained = isinstance(fig.get_layout_engine(), ConstrainedLayoutEngine)
+                except (ImportError, AttributeError):
+                    _is_constrained = getattr(fig, "_constrained", False)
+                if not _is_constrained:
+                    fig.subplots_adjust(bottom=0.44)
 
             def _attach_pauli_box(target_ax, rp_p, er_p, rp_c, er_c, fontsize: int = 9):
                 ratio = er_p / rp_p
@@ -868,6 +927,10 @@ class LaplacianHamiltoniansWorkshop:
             if pauli_ann_data is not None:
                 _attach_pauli_box(plt.gca(), *pauli_ann_data)
 
+            if show_stats_table and stats_rows:
+                _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
+                _attach_stats_table(plt.gca(), stats_rows, row_colors=_row_colors)
+
             if not show_only:
                 stem = f"spectra_plot__{save_tag}" if save_tag else "spectra_plot"
                 out_png = Path(run_dir, manifest_item["item_id"], f"{stem}.png")
@@ -893,6 +956,10 @@ class LaplacianHamiltoniansWorkshop:
                 )
                 if pauli_ann_data is not None:
                     _attach_pauli_box(ax, *pauli_ann_data)
+
+                if show_stats_table and stats_rows:
+                    _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
+                    _attach_stats_table(ax, stats_rows, row_colors=_row_colors, fontsize=7)
 
         if merge_plots:
             # Hide any unused axes in sparse parameter grids
@@ -1483,7 +1550,7 @@ if __name__ == "__main__":
 
     experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_09-35-22"))
     experiment.analyze_results()
-    experiment.plot_results()#show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
-    experiment.plot_matrices()#show_titles=False, save_tag=save_tag)
+    experiment.plot_results()#show_stats_table=True, save_tag="WITH_STATS_TABLE")#show_titles=False, highlight_pauli_compression=False, save_tag=save_tag)
+    # experiment.plot_matrices()#show_titles=False, save_tag=save_tag)
     # experiment.plot_soergel_distance()
-    experiment.draw_graphs()#show_titles=False, save_tag=save_tag)
+    # experiment.draw_graphs()#show_titles=False, save_tag=save_tag)
