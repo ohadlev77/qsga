@@ -225,21 +225,46 @@ def test_compute_weighted_density():
 
 
 def test_compare_hermitian_spectra():
+    # identical spectra
     spec_a = np.array([1.0, 2.0])
     spec_b = np.array([1.0, 2.0])
     res = compare_hermitian_spectra(spec_a, spec_b)
     assert res["soergel_distance"] == 0.0
-    # assert res["hellinger_distance"] == 0.0
-    assert res["cosine_similarity"] == 1.0
-    
+    assert res["spectral_similarity_sigma"] == 1.0
+
+    # 10x-scaled spectra: soergel > 0, sigma = 10.0
+    # p_nz = [2.0], q_nz = [20.0] → ratio = 20/2 = 10.0
     spec_c = np.array([10.0, 20.0])
     res2 = compare_hermitian_spectra(spec_a, spec_c)
-    assert res2["cosine_similarity"] == 1.0
     assert res2["soergel_distance"] > 0.0
-    # assert res2["hellinger_distance"] >= 0.0
+    assert res2["spectral_similarity_sigma"] == 10.0
+
+    # Laplacian-like (zero first eigenvalue): sigma ignores index 0
+    # non-trivial eigenvalues scaled 2x → sigma = 2.0
+    lap_a = np.array([0.0, 1.0, 3.0])
+    lap_b = np.array([0.0, 2.0, 6.0])
+    res3 = compare_hermitian_spectra(lap_a, lap_b)
+    assert res3["spectral_similarity_sigma"] == 2.0
+
+    # asymmetric ratio: worst-case eigenvalue pair wins
+    # ratios: [1/2→2.0, 4/4→1.0] → sigma = 2.0
+    lap_c = np.array([0.0, 1.0, 4.0])
+    lap_d = np.array([0.0, 2.0, 4.0])
+    res4 = compare_hermitian_spectra(lap_c, lap_d)
+    assert res4["spectral_similarity_sigma"] == 2.0
+
+    # all eigenvalues near zero → no safe pairs → sigma is None
+    res5 = compare_hermitian_spectra(np.zeros(3), np.zeros(3))
+    assert res5["spectral_similarity_sigma"] is None
+
+    # mismatched lengths → ValueError
+    with pytest.raises(ValueError):
+        compare_hermitian_spectra(np.array([1.0, 2.0]), np.array([1.0, 2.0, 3.0]))
 
     if VERBOSE:
         print(f"\n--- test_compare_hermitian_spectra ---")
-        print(f"Spectrum A: {spec_a}")
-        print(f"Spectrum B: {spec_b} -> Distance: {res}")
-        print(f"Spectrum C: {spec_c} -> Distance: {res2}")
+        print(f"Identical:    {res}")
+        print(f"10x-scaled:   {res2}")
+        print(f"Laplacian 2x: {res3}")
+        print(f"Asymmetric:   {res4}")
+        print(f"All-zero:     {res5}")

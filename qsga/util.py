@@ -222,34 +222,40 @@ def obtain_random_weighted_graph(
 
 
 def compare_hermitian_spectra(
-    spectrum_a: np.ndarray, 
+    spectrum_a: np.ndarray,
     spectrum_b: np.ndarray
 ) -> dict[str, float]:
     """
-    Computes strictly bounded [0, 1] similarity and distance measures 
-    between two eigenvalue spectra.
+    Computes similarity and distance measures between two eigenvalue spectra.
     """
+
+    if len(spectrum_a) != len(spectrum_b):
+        raise ValueError("Spectra should be of the same dimension.")
+    
     # Ensure sorted order
     p = np.sort(spectrum_a)
     q = np.sort(spectrum_b)
-    
-    # 1. Soergel Distance 
+
+    # 1. Soergel Distance
     # Normalized L1: (sum of absolute diffs) / (sum of max values)
-    soergel = np.sum(np.abs(p - q)) / np.sum(np.maximum(p, q))
-    
-    # 2. Hellinger Distance [cite: 403-405]
-    # Normalized L2 analog for PDFs. Bounded [0, 1].
-    # p_pdf = p / np.sum(p)
-    # q_pdf = q / np.sum(q)
-    # bc = np.sum(np.sqrt(p_pdf * q_pdf)) # Bhattacharyya Coefficient [cite: 396]
-    # hellinger = np.sqrt(1 - bc)
-    
-    # 3. Cosine Similarity [cite: 60-61]
-    # Measures trend alignment. Bounded [0, 1] for non-negative vectors.
-    cos_sim = 1 - distance.cosine(p, q)
-    
-    return {
+    denom = np.sum(np.maximum(p, q))
+    soergel = np.sum(np.abs(p - q)) / denom if denom > 0 else 0.0
+
+    # 3. Spectral similarity σ (Batson, Spielman, Srivastava, Teng 2013)
+    # Smallest σ ≥ 1 s.t. L_B/σ ≼ L_A ≼ σ·L_B (equiv. Laplacian sandwich).
+    # From eigenvalues: σ = max_i max(λ_i(A)/λ_i(B), λ_i(B)/λ_i(A))
+    # over non-trivial eigenvalues (skip λ_1 = 0 for connected graphs).
+    sigma = None
+    p_nz, q_nz = p[1:], q[1:]  # drop shared trivial zero eigenvalue
+    eps = 1e-10
+    safe = (p_nz > eps) & (q_nz > eps)
+    if np.any(safe):
+        ratios = np.maximum(p_nz[safe] / q_nz[safe], q_nz[safe] / p_nz[safe])
+        sigma = float(f"{np.max(ratios):.3f}")
+
+    result = {
         "soergel_distance": float(f"{soergel:.3f}"),
-        # "hellinger_distance": float(f"{hellinger:.3f}"),
-        "cosine_similarity": float(f"{cos_sim:.3f}"),
+        "spectral_similarity_sigma": sigma
     }
+        
+    return result
