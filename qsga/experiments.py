@@ -683,6 +683,7 @@ class LaplacianHamiltoniansWorkshop:
         show_titles: bool = True,
         orientation: str = "horizontal",
         highlight_pauli_compression: bool = False,
+        highlight_spectra_comparison_metrics: bool = False,
         show_stats_table: bool = False,
         save_tag: str | None = None,
         descriptive_legend: bool = True
@@ -698,6 +699,9 @@ class LaplacianHamiltoniansWorkshop:
             highlight_pauli_compression: If True, annotate each plot with a box
                 showing the Pauli-count gap between the Randomly Perturbed and
                 Erdős-Rényi graphs and their compression ratio.
+            highlight_spectra_comparison_metrics: If True, annotate each plot with
+                a box showing the Soergel distance and σ spectral similarity
+                between the compared spectra.
             show_stats_table: If True, legend entries show only graph names and a
                 comparison table with |E|, |P|, |P_G| is rendered below the axes.
             save_tag: If provided, appended to output filenames as ``__<tag>``
@@ -931,6 +935,40 @@ class LaplacianHamiltoniansWorkshop:
                 ab.patch.set_alpha(0.93)
                 target_ax.add_artist(ab)
 
+            def _attach_spectra_metrics_box(target_ax, soergel: float, sigma: float | None, fontsize: int = 9):
+                sigma_str = f"{sigma:.3f}" if sigma is not None else "N/A"
+                areas = VPacker(align="left", pad=4, sep=5, children=[
+                    TextArea("ER/ROP Spectra Comparison", textprops=dict(
+                        fontsize=fontsize, fontweight="bold", color="#333333"
+                    )),
+                    TextArea(f"Soergel distance = {soergel:.3f}", textprops=dict(
+                        fontsize=fontsize, color="#333333"
+                    )),
+                    TextArea(f"Spectral similarity $σ$ = {sigma_str}", textprops=dict(
+                        fontsize=fontsize, color="#333333"
+                    )),
+                ])
+                ab = AnchoredOffsetbox(
+                    loc="upper left",
+                    bbox_to_anchor=(0.52, 0.47),
+                    bbox_transform=target_ax.transAxes,
+                    child=areas,
+                    frameon=True,
+                )
+                ab.patch.set_edgecolor("#aaaaaa")
+                ab.patch.set_facecolor("#f8f8f8")
+                ab.patch.set_alpha(0.93)
+                target_ax.add_artist(ab)
+
+            spectra_metrics_data = None
+            if highlight_spectra_comparison_metrics:
+                comparison = config_execution_result.get("spectra_comparison")
+                if comparison is not None:
+                    soergel_val = comparison.get("soergel_distance")
+                    sigma_val = comparison.get("spectral_similarity_sigma")
+                    if soergel_val is not None:
+                        spectra_metrics_data = (soergel_val, sigma_val)
+
             plt.xlabel("Eigenvalue index")
             plt.ylabel("Eigenvalue")
             plt.legend(
@@ -947,6 +985,9 @@ class LaplacianHamiltoniansWorkshop:
 
             if pauli_ann_data is not None:
                 _attach_pauli_box(plt.gca(), *pauli_ann_data)
+
+            if spectra_metrics_data is not None:
+                _attach_spectra_metrics_box(plt.gca(), *spectra_metrics_data)
 
             if show_stats_table and stats_rows:
                 _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
@@ -977,6 +1018,9 @@ class LaplacianHamiltoniansWorkshop:
                 )
                 if pauli_ann_data is not None:
                     _attach_pauli_box(ax, *pauli_ann_data)
+
+                if spectra_metrics_data is not None:
+                    _attach_spectra_metrics_box(ax, *spectra_metrics_data, fontsize=7)
 
                 if show_stats_table and stats_rows:
                     _row_colors = [graph_colors.get(gt) for gt in stats_graph_types]
@@ -1514,27 +1558,27 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    for q in range(6, 16):
-        ec = ExperimentConfigurations(
-            n_num_qubits=[q], # q
-            d_skeleton_regularity=[3],
-            max_skeleton_locality=[3],
-            num_perturbations=[
-                # 0,
-                # lambda x: int(np.sqrt(x)),
-                # lambda x: x,
-                lambda x: x**2,
-                lambda x: x**3,
-                # lambda x: 2**x,
-                # lambda x: 2 * 2**x
-            ],
-            max_perturbation_locality=[3, 4, 5], #list(range(1, q + 1)), # m
-            perturbation_weights_bounds=[(0.5, 5)],
-            seed=[32],
-        )
+    # for q in range(6, 16):
+    #     ec = ExperimentConfigurations(
+    #         n_num_qubits=[q], # q
+    #         d_skeleton_regularity=[3],
+    #         max_skeleton_locality=[3],
+    #         num_perturbations=[
+    #             # 0,
+    #             # lambda x: int(np.sqrt(x)),
+    #             # lambda x: x,
+    #             lambda x: x**2,
+    #             lambda x: x**3,
+    #             # lambda x: 2**x,
+    #             # lambda x: 2 * 2**x
+    #         ],
+    #         max_perturbation_locality=[3, 4, 5], #list(range(1, q + 1)), # m
+    #         perturbation_weights_bounds=[(0.5, 5)],
+    #         seed=[32],
+    #     )
 
-        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-        experiment.run_all("experiments_data_archive", draw_graphs=False, run_name=f"COMPREHENSIVE_SPECTRA_COMPARISON__q_{q}")
+    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+    #     experiment.run_all("experiments_data_archive", draw_graphs=False, run_name=f"COMPREHENSIVE_SPECTRA_COMPARISON__q_{q}")
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1571,14 +1615,14 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
-    # data_dir_path = Path(
-    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
-    # )
-    # save_tag = "FOR_PAPER"
+    data_dir_path = Path(
+        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    )
+    save_tag = "SPECTRA_ANALYZE_BOX"
 
-    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_11-54-18"))
-    # experiment.analyze_results()
-    # experiment.plot_results(descriptive_legend=False, save_tag=save_tag, show_titles=False)
+    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_11-54-18"))
+    experiment.analyze_results()
+    experiment.plot_results(descriptive_legend=False, save_tag=save_tag, show_titles=True, highlight_spectra_comparison_metrics=True)
     # experiment.plot_matrices(show_titles=False, save_tag=save_tag)
-    # # experiment.plot_soergel_distance()
+    # experiment.plot_soergel_distance()
     # experiment.draw_graphs(show_titles=False, save_tag=save_tag)
