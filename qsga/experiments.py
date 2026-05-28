@@ -350,13 +350,18 @@ class LaplacianHamiltoniansWorkshop:
             if callable(element):
                 self.metadata["configurations"]["num_perturbations"][index] = str(element)
 
-    def perform_experiment(self, save_dir: str | Path | None = None) -> None:
+    def perform_experiment(self, save_dir: str | Path | None = None, run_name: str | None = None) -> None:
         """Generate all Laplacian graphs and compute their properties.
 
         For each configuration, generates:
         - Skeleton Laplacian graph.
         - Randomly Perturbed Scrambled Laplacian (`PerturbationScalingMethod.SCRAMBLE`).
         - Erdős–Rényi graphs matching the scrambled and ROP perturbed graphs in density and weights.
+
+        Args:
+            save_dir: Directory where results will be saved. If None, results are not saved.
+            run_name: Optional suffix appended to the auto-generated timestamp directory name
+                (e.g. ``run_name="my_run"`` → ``2026-05-27_11-54-18_my-run/``).
         """
         reset_log_capture()
 
@@ -364,6 +369,7 @@ class LaplacianHamiltoniansWorkshop:
         if save_dir is not None:
             saver = IncrementalSaver(
                 out_dir=save_dir,
+                run_name=run_name,
                 experiment_metadata=self.metadata,
             )
             self.data_dir_path = save_dir
@@ -1469,6 +1475,7 @@ class LaplacianHamiltoniansWorkshop:
         figures_orientation: str = "horizontal",
         show_titles: bool = True,
         highlight_pauli_compression: bool = False,
+        run_name: str | None = None,
     ) -> None:
         """Execute the complete experiment pipeline.
 
@@ -1476,9 +1483,11 @@ class LaplacianHamiltoniansWorkshop:
             filepath: Path where results will be saved.
             figures_orientation: Orientation of the figures (horizontal/vertical).
             highlight_pauli_compression: Passed through to plot_results.
+            run_name: Optional suffix appended to the auto-generated timestamp directory name
+                (e.g. ``run_name="my_run"`` → ``2026-05-27_11-54-18_my-run/``).
         """
         try:
-            self.perform_experiment(save_dir=filepath)
+            self.perform_experiment(save_dir=filepath, run_name=run_name)
         except Exception as e:
             if self.data:
                 logger.info(f"Experiment pipeline encountered an error, but attempting to generate plots for the {len(self.data)} successfully completed configurations.")
@@ -1505,26 +1514,27 @@ class LaplacianHamiltoniansWorkshop:
 
 if __name__ == "__main__":
 
-    # for q in [8]:
-    #     ec = ExperimentConfigurations(
-    #         n_num_qubits=[q], # q
-    #         d_skeleton_regularity=[3],
-    #         max_skeleton_locality=[3],
-    #         num_perturbations=[
-    #             0,
-    #             lambda x: int(np.sqrt(x)),
-    #             lambda x: x,
-    #             lambda x: x**2,
-    #             lambda x: 2**x,
-    #             # lambda x: 2 * 2**x
-    #         ],
-    #         max_perturbation_locality=[4], #list(range(1, q + 1)), # m
-    #         perturbation_weights_bounds=[(0.5, 5)],
-    #         seed=[32],
-    #     )
+    for q in range(6, 16):
+        ec = ExperimentConfigurations(
+            n_num_qubits=[q], # q
+            d_skeleton_regularity=[3],
+            max_skeleton_locality=[3],
+            num_perturbations=[
+                # 0,
+                # lambda x: int(np.sqrt(x)),
+                # lambda x: x,
+                lambda x: x**2,
+                lambda x: x**3,
+                # lambda x: 2**x,
+                # lambda x: 2 * 2**x
+            ],
+            max_perturbation_locality=[3, 4, 5], #list(range(1, q + 1)), # m
+            perturbation_weights_bounds=[(0.5, 5)],
+            seed=[32],
+        )
 
-    #     experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
-    #     experiment.run_all("experiments_data_archive", draw_graphs=True)
+        experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
+        experiment.run_all("experiments_data_archive", draw_graphs=False, run_name=f"COMPREHENSIVE_SPECTRA_COMPARISON__q_{q}")
 
     # ec = ExperimentConfigurations(
     #     n_num_qubits=[7, 9, 11, 13], # q
@@ -1561,14 +1571,14 @@ if __name__ == "__main__":
     # experiment = LaplacianHamiltoniansWorkshop(configurations=ec)
     # experiment.run_all("experiments_data_archive", draw_graphs=False)
 
-    data_dir_path = Path(
-        "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
-    )
-    save_tag = "FOR_PAPER"
+    # data_dir_path = Path(
+    #     "/home/ohad-lev/ohad/msc/research/thesis/qsga/experiments_data_archive"
+    # )
+    # save_tag = "FOR_PAPER"
 
-    experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_11-54-18"))
-    experiment.analyze_results()
-    experiment.plot_results(descriptive_legend=False, save_tag=save_tag, show_titles=False)
-    experiment.plot_matrices(show_titles=False, save_tag=save_tag)
-    # experiment.plot_soergel_distance()
-    experiment.draw_graphs(show_titles=False, save_tag=save_tag)
+    # experiment = LaplacianHamiltoniansWorkshop.from_data(Path(data_dir_path, "2026-05-27_11-54-18"))
+    # experiment.analyze_results()
+    # experiment.plot_results(descriptive_legend=False, save_tag=save_tag, show_titles=False)
+    # experiment.plot_matrices(show_titles=False, save_tag=save_tag)
+    # # experiment.plot_soergel_distance()
+    # experiment.draw_graphs(show_titles=False, save_tag=save_tag)
